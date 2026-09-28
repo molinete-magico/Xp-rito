@@ -8,8 +8,9 @@ import { createClient } from "@/lib/supabase/client";
  * políticas do bucket. O primeiro segmento do caminho é o actor (avatar/banner)
  * ou o post (mídia de publicação), e a política verifica a posse no Postgres.
  *
- * Limite de tipo e tamanho é aplicado duas vezes: aqui, para dar retorno
- * imediato, e no bucket, que é quem realmente recusa.
+ * JPG/PNG/WEBP são reencodados para WebP aqui mesmo, no navegador, com uma
+ * largura/altura máximas por uso: cabem mais imagens no banco e o tráfego cai.
+ * GIF animado fica como está, porque o canvas não anima.
  */
 
 export const AVATARS_BUCKET = "avatars";
@@ -23,6 +24,20 @@ export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 export const MAX_POST_MEDIA_BYTES = 8 * 1024 * 1024;
 export const MAX_MEDIA_PER_POST = 4;
 
+/** Qualidade do WebP gerado: bom equilíbrio entre tamanho e nitidez. */
+export const WEBP_QUALITY = 0.8;
+
+/** Maior aresta permitida após compressão, por tipo de pasta. */
+export const AVATAR_PREVIEW_EDGE = 512;
+export const BANNER_PREVIEW_EDGE = 1600;
+export const POST_MEDIA_PREVIEW_EDGE = 1920;
+
+const PREVIEW_EDGE_BY_BUCKET: Record<string, number> = {
+  [AVATARS_BUCKET]: AVATAR_PREVIEW_EDGE,
+  [BANNERS_BUCKET]: BANNER_PREVIEW_EDGE,
+  [POST_MEDIA_BUCKET]: POST_MEDIA_PREVIEW_EDGE,
+};
+
 export function publicUrl(bucket: string, path: string): string {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) return "";
@@ -34,7 +49,7 @@ export type UploadResult =
   | { ok: false; error: string };
 
 /**
- * Valida, mede e envia uma imagem.
+ * Valida, comprime e envia uma imagem.
  *
  * O caminho é derivado do id do dono e de um valor aleatório, nunca do nome
  * original do arquivo, que traria extensão e caracteres controlados pelo usuário
@@ -55,26 +70,27 @@ export async function uploadImage(
     return { ok: false, error: "Arquivo vazio." };
   }
 
-  const dimensions = await readDimensions(file);
-  const extension = extensionFor(file.type as AcceptedMimeType);
-  const storagePath = `${options.ownerId}/${crypto.randomUUID()}.${extension}`;
-
   const supabase = createClient();
-  const { error } = await supabase.storage
-    .from(options.bucket)
-    .upload(storagePath, file, { contentType: file.type, upsert: false });
+  const ownerId = options.ownerId;
+  const bucket = options.bucket;
 
-  if (error) {
-    return { ok: false, error: "Não foi possível enviar a imagem." };
+  if (file.type === "image/gif") {
+    return storeOriginal(supabase, file, bucket, ownerId, "gif");
   }
 
-  return {
-    ok: true,
-    storagePath,
-    mediaType: file.type as AcceptedMimeType,
-    width: dimensions.width,
-    height: dimensions.height,
-  };
+  const edge = PREVIEW_EDGE_BY_BUCKET[bucket];
+  const converted = edge ? await encodeWebP(file, edge, WEBP_QUALITY) : null;
+
+  if (converted && converted.blob.size <= options.maxBytes && converted.blob.size > 0) {
+    return storeImage(supabase, converted.blob, bucket, ownerId, "webp", {
+      mediaType: "image/webp",
+      width: converted.width,
+      height: converted.height,
+    });
+  }
+
+  // Conversão falharia (arquivo estranho) ou não valeria a pena: sobe o original.
+  return storeOriginal(supabase, file, bucket, ownerId, extensionFor(file.type as AcceptedMimeType));
 }
 
 export async function removeObject(bucket: string, path: string): Promise<void> {
@@ -101,6 +117,101 @@ export function readDimensions(file: File): Promise<{ width: number; height: num
 
     image.src = url;
   });
+}
+
+/**
+ * Reencoda uma imagem estática para WebP no navegador, reduzindo a maior aresta
+ * para `maxEdge` (a imagem menor fica do tamanho dela). Retorna `null` se não
+ * der para decodificar — nesse caso o arquivo original segue intacto.
+ *
+ * O navegador já aplica a orientação do EXIF ao desenhar, então fotos de celular
+ * ficam em pé sozinhas.
+ */
+export function encodeWebP(
+  file: File,
+  maxEdge: number,
+  quality = WEBP_QUALITY,
+): Promise<{ blob: Blob; width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        URL.revokeObjectURL(url);
+        resolve(null);
+        return;
+      }
+      context.drawImage(image, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(
+        (blob) => resolve(blob ? { blob, width, height } : null),
+        "image/webp",
+        quality,
+      );
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+
+    image.src = url;
+  });
+}
+
+async function storeImage(
+  supabase: ReturnType<typeof createClient>,
+  data: Blob,
+  bucket: string,
+  ownerId: string,
+  extension: string,
+  meta: { mediaType: "image/webp"; width: number; height: number },
+): Promise<UploadResult> {
+  const storagePath = `${ownerId}/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(storagePath, data, { contentType: meta.mediaType, upsert: false });
+
+  if (error) {
+    return { ok: false, error: "Não foi possível enviar a imagem." };
+  }
+
+  return { ok: true, storagePath, mediaType: meta.mediaType, width: meta.width, height: meta.height };
+}
+
+async function storeOriginal(
+  supabase: ReturnType<typeof createClient>,
+  file: File,
+  bucket: string,
+  ownerId: string,
+  extension: string,
+): Promise<UploadResult> {
+  const dimensions = await readDimensions(file);
+  const storagePath = `${ownerId}/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(storagePath, file, { contentType: file.type, upsert: false });
+
+  if (error) {
+    return { ok: false, error: "Não foi possível enviar a imagem." };
+  }
+
+  return {
+    ok: true,
+    storagePath,
+    mediaType: file.type as AcceptedMimeType,
+    width: dimensions.width,
+    height: dimensions.height,
+  };
 }
 
 function extensionFor(mime: AcceptedMimeType): string {

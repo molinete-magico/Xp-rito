@@ -154,8 +154,8 @@ export function MediaUploader({
             tabIndex={-1}
           />
           <p className="mt-1.5 text-[11px] text-ink-3">
-            Até {MAX_MEDIA_PER_POST} imagens, {MEDIA_SIZE_TEXT} cada. A primeira precisa de
-            descrição.
+            Até {MAX_MEDIA_PER_POST} imagens, {MEDIA_SIZE_TEXT} cada. Fotos e PNG viram WebP
+            no envio; GIF animado segue como está. A primeira precisa de descrição.
           </p>
         </div>
       ) : (
