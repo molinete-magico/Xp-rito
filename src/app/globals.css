@@ -1,26 +1,247 @@
 @import "tailwindcss";
 
+/*
+ * twitter espiritual — sistema visual
+ * ------------------------------------
+ * Direção: timeline à moda do Twitter. Fundo limpo, identidade pela
+ * tipografia e pela hierarquia em cinza. Azul para interação e navegação,
+ * vermelho para curtida e ações destrutivas, verde para retuíte/sucesso.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --sunken: #f7f9f9;
+  --ink: #0f1419;
+  --ink-2: #536471;
+  --ink-3: #8b98a5;
+  --line: #eff3f4;
+  --line-2: #d7dde0;
+  --accent: #1d9bf0;
+  --accent-strong: #1a8cd8;
+  --accent-soft: #e8f5fd;
+  --link: #1d9bf0;
+  --positive: #00ba7c;
+  --caution: #f4212e;
+  --danger: #f4212e;
+  --danger-strong: #d41a2b;
+  --danger-soft: #ffebec;
+}
+
+.dark {
+  --bg: #000000;
+  --surface: #000000;
+  --sunken: #16181c;
+  --ink: #e7e9ea;
+  --ink-2: #71767b;
+  --ink-3: #8b98a5;
+  --line: #2f3336;
+  --line-2: #38444d;
+  --accent: #1d9bf0;
+  --accent-strong: #1a8cd8;
+  --accent-soft: #1b3554;
+  --link: #1d9bf0;
+  --positive: #00ba7c;
+  --caution: #f4212e;
+  --danger: #f4212e;
+  --danger-strong: #e0245e;
+  --danger-soft: #2b1114;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-link: var(--link);
+  --color-positive: var(--positive);
+  --color-caution: var(--caution);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-soft: var(--danger-soft);
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+
+  --ease-out-soft: cubic-bezier(0.2, 0, 0, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "kern", "liga", "calt";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-wrap: break-word;
+  }
+
+  /* Foco visível e consistente, sem depender do outline do navegador. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  /* Números tabulares em qualquer contador: evita o "pulinho" ao atualizar. */
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  textarea {
+    field-sizing: content;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Rótulo de seção: sans, versalete, mono. Erseta a famigerada "badge". */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* Corpo de publicação: serifa, medida curta, entrelinha generosa. */
+  .prose-post {
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    letter-spacing: -0.003em;
+    color: var(--ink);
+  }
+
+  @media (min-width: 640px) {
+    .prose-post {
+      font-size: 1.125rem;
+    }
+  }
+
+  .prose-post a,
+  .prose-post .tag {
+    color: var(--link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in oklab, var(--link) 40%, transparent);
+  }
+
+  .prose-post .tag {
+    text-decoration: none;
+  }
+
+  .prose-post .tag:hover {
+    text-decoration: underline;
+  }
+
+  /* Superfície padrão: papel, fio por cima, canto vivo. */
+  .sheet {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Linha divisória usada no lugar de cards empilhados. */
+  .rule {
+    border-top: 1px solid var(--line);
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  /* Animação curta usada para retorno de optimistic UI e abertura de menu. */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-rise {
+    animation: rise 0.16s var(--ease-out-soft) both;
+  }
+
+  @keyframes pop {
+    0% {
+      transform: scale(1);
+    }
+    45% {
+      transform: scale(1.28);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .animate-pop {
+    animation: pop 0.24s var(--ease-out-soft);
+  }
 }

@@ -1,0 +1,85 @@
+import Link from "next/link";
+import { Avatar } from "@/components/ui/avatar";
+import { SideNav, BottomNav } from "@/components/shell/navigation";
+import { UnreadProvider } from "@/components/shell/unread-provider";
+import { site } from "@/lib/site";
+import type { ActorSummary } from "@/lib/types";
+
+/**
+ * Moldura da rede: navegar, ler, descobrir.
+ *
+ * Server Component. Só o que precisa de interoperabilidade (estado ativo dos
+ * links, popover da conta e assinatura do Realtime) vira Client Component e
+ * recebe os dados por props. O painel direito chega pronto, já consultado no
+ * servidor, para que a primeira pintura não espere nada.
+ */
+export function AppShell({
+  children,
+  identities,
+  activeActorId,
+  isGm,
+  initialUnread,
+  sidePanel,
+}: {
+  children: React.ReactNode;
+  identities: ActorSummary[];
+  activeActorId: string | null;
+  isGm: boolean;
+  initialUnread: number;
+  sidePanel: React.ReactNode;
+}) {
+  const actorIds = identities.map((actor) => actor.id);
+  const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
+
+  return (
+    <UnreadProvider initial={initialUnread} actorIds={actorIds}>
+      <div className="min-h-dvh">
+        <a
+          href="#conteudo"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-ink focus:px-3 focus:py-2 focus:text-bg"
+        >
+          Ir para o conteúdo
+        </a>
+
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface px-4 py-2.5 lg:hidden">
+          <Link href="/home" className="font-display text-base leading-none text-ink">
+            {site.name}
+          </Link>
+          {active ? (
+            <Link href={`/profile/${active.username}`} aria-label="Abrir seu perfil">
+              <Avatar
+                name={active.display_name}
+                username={active.username}
+                src={active.avatar_url}
+                size="sm"
+                decorative
+              />
+            </Link>
+          ) : (
+            <span className="label text-ink-3">sem identidade</span>
+          )}
+        </header>
+
+        <div className="mx-auto flex w-full max-w-[1120px]">
+          <aside className="sticky top-0 hidden h-dvh w-[240px] shrink-0 flex-col border-r border-line px-3 py-4 lg:flex xl:w-[264px]">
+            <SideNav
+              identities={identities}
+              activeActorId={activeActorId}
+              isGm={isGm}
+            />
+          </aside>
+
+          <main id="conteudo" className="min-w-0 flex-1 border-line pb-20 lg:border-x lg:pb-0">
+            {children}
+          </main>
+
+          <aside className="sticky top-0 hidden h-dvh w-[320px] shrink-0 overflow-y-auto py-4 pl-5 lg:block">
+            {sidePanel}
+          </aside>
+        </div>
+
+        <BottomNav identities={identities} activeActorId={activeActorId} />
+      </div>
+    </UnreadProvider>
+  );
+}
