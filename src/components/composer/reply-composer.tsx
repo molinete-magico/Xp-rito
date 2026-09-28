@@ -6,6 +6,7 @@ import { Send } from "lucide-react";
 import { replyAction } from "@/app/actions/posts";
 import { Avatar } from "@/components/ui/avatar";
 import { IdentitySwitcher } from "@/components/composer/identity-switcher";
+import { useSession } from "@/components/shell/session-provider";
 import { FormMessage, TextArea } from "@/components/ui/field";
 import { buttonClass } from "@/components/ui/button";
 import { idleState } from "@/lib/validation/schemas";
@@ -14,20 +15,25 @@ import type { ActorSummary } from "@/lib/types";
 /**
  * Resposta a uma publicação.
  *
- * Sem imagem: a resposta é curta e é lida no meio de uma conversa.
+ * Sem imagem: a resposta é curta e é lida no meio de uma conversa. Quando não
+ * recebe identidades, usa a sessão do navegador.
  */
 export function ReplyComposer({
   postId,
-  identities,
-  activeActorId,
   authorName,
+  identities: explicitIdentities,
+  activeActorId: explicitActiveActorId,
 }: {
   postId: string;
-  identities: ActorSummary[];
-  activeActorId: string | null;
   authorName: string;
+  identities?: ActorSummary[];
+  activeActorId?: string | null;
 }) {
   const router = useRouter();
+  const session = useSession();
+  const identities = explicitIdentities ?? session.viewer?.identities ?? [];
+  const activeActorId =
+    explicitActiveActorId !== undefined ? explicitActiveActorId : (session.viewer?.activeActorId ?? null);
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(replyAction, idleState);
   const [content, setContent] = useState("");
@@ -44,6 +50,7 @@ export function ReplyComposer({
   useEffect(() => {
     if (!state.ok) return;
     formRef.current?.reset();
+    window.dispatchEvent(new Event("xpirito:refresh"));
     router.refresh();
   }, [state.ok, router]);
 

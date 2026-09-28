@@ -10,15 +10,17 @@ function isPublicRoute(pathname: string) {
 }
 
 /**
- * Renovação da sessão.
+ * Renovação da sessão — checagem otimista.
  *
- * `getUser()` revalida o JWT com o Supabase Auth (não confia no cookie) e
- * devolve cookies renovados quando o token está prestes a expirar. É também o
- * único ponto onde escrevemos cookies durante o ciclo de render.
+ * O proxy roda em todas as rotas, inclusive nos prefetch de links. Por isso a
+ * leitura aqui é apenas do cookie (getSession decodifica o JWT localmente); só
+ * quando o token está perto de vencer o SDK conversa com o Supabase Auth para
+ * renová-lo. A validação de verdade acontece onde os dados moram: no Postgres,
+ * via RLS, e no `getUser()` das leituras geradas sob demanda.
  *
  * O proxy NÃO decide autorização: apenas redireciona quem não tem sessão para a
  * tela de entrada. Quem é o Mestre e quem é dono de cada identidade é perguntado
- * ao Postgres, no RLS.
+ * ao Postgres.
  */
 export async function refreshSession(request: NextRequest): Promise<NextResponseType> {
   let response = NextResponse.next({ request });
@@ -50,19 +52,20 @@ export async function refreshSession(request: NextRequest): Promise<NextResponse
   });
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const { pathname } = request.nextUrl;
+  const hasSession = Boolean(session?.access_token);
 
-  if (!user && !isPublicRoute(pathname)) {
+  if (!hasSession && !isPublicRoute(pathname)) {
     const target = request.nextUrl.clone();
     target.pathname = "/login";
     target.search = `?proximo=${encodeURIComponent(pathname + request.nextUrl.search)}`;
     return NextResponse.redirect(target);
   }
 
-  if (user && isPublicRoute(pathname)) {
+  if (hasSession && isPublicRoute(pathname)) {
     const target = request.nextUrl.clone();
     target.pathname = "/home";
     target.search = "";
