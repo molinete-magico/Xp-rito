@@ -13,10 +13,10 @@ const trimmed = z
   .pipe(z.string());
 
 export const usernameField = trimmed
+  .transform(normalizeUsername)
   .pipe(z.string().min(USERNAME_MIN, `Use ao menos ${USERNAME_MIN} caracteres.`))
   .pipe(z.string().max(USERNAME_MAX, `Use no máximo ${USERNAME_MAX} caracteres.`))
-  .refine((value) => checkUsername(value) === null, { message: "Formato de @ inválido." })
-  .transform(normalizeUsername);
+  .refine((value) => checkUsername(value) === null, { message: "Formato de @ inválido." });
 
 export const displayNameField = trimmed.pipe(
   z.string().min(1, "Diga como você quer ser chamado.").max(80, "Máximo de 80 caracteres."),
