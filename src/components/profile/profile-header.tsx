@@ -44,7 +44,7 @@ export function ProfileHeader({
       </div>
 
       <div className="px-4 pb-3">
-        <div className="-mt-10 flex items-end justify-between gap-3 sm:-mt-12">
+        <div className="relative z-10 -mt-10 flex items-end justify-between gap-3 sm:-mt-12">
           <Avatar
             name={profile.display_name}
             username={profile.username}
