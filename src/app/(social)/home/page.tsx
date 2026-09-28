@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import { requireViewer } from "@/lib/session";
 import { loadPosts } from "@/lib/data/posts";
 import { PostComposer } from "@/components/composer/post-composer";
 import { PostTimeline } from "@/components/timeline/post-timeline";
+import { PostFeedSkeleton } from "@/components/timeline/post-feed-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
+import type { Viewer } from "@/lib/session";
 
 /**
  * Feed principal.
@@ -19,7 +22,6 @@ export default async function HomePage({
 }) {
   const { cursor } = await searchParams;
   const viewer = await requireViewer();
-  const page = await loadPosts(viewer, { kind: "recentes" }, { cursor });
 
   return (
     <>
@@ -42,15 +44,23 @@ export default async function HomePage({
         </div>
       )}
 
-      <PostTimeline
-        posts={page.posts}
-        nextCursor={page.nextCursor}
-        hasMore={page.hasMore}
-        basePath="/home"
-        empty={
-          <EmptyState title="A rede está em silêncio" />
-        }
-      />
+      <Suspense fallback={<PostFeedSkeleton />}>
+        <HomeFeed viewer={viewer} cursor={cursor} />
+      </Suspense>
     </>
+  );
+}
+
+async function HomeFeed({ viewer, cursor }: { viewer: Viewer; cursor?: string }) {
+  const page = await loadPosts(viewer, { kind: "recentes" }, { cursor });
+
+  return (
+    <PostTimeline
+      posts={page.posts}
+      nextCursor={page.nextCursor}
+      hasMore={page.hasMore}
+      basePath="/home"
+      empty={<EmptyState title="A rede está em silêncio" />}
+    />
   );
 }

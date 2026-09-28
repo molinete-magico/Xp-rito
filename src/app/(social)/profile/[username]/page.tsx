@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireViewer } from "@/lib/session";
@@ -6,8 +7,11 @@ import { loadPosts } from "@/lib/data/posts";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { PostComposer } from "@/components/composer/post-composer";
 import { PostTimeline } from "@/components/timeline/post-timeline";
+import { PostFeedSkeleton } from "@/components/timeline/post-feed-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { accountTypeLabels, accountTypeOf } from "@/lib/site";
+import type { ActorSummary } from "@/lib/types";
+import type { Viewer } from "@/lib/session";
 import type { PostScope } from "@/lib/data/posts";
 
 export async function generateMetadata({
@@ -56,7 +60,6 @@ export default async function ProfilePage({
         ? { kind: "reposts-do-ator", actorId: profile.id }
         : { kind: "ator", actorId: profile.id };
 
-  const page = await loadPosts(viewer, scope, { cursor: query.cursor });
   const emptyTitleForTab = emptyTitle[tab];
 
   return (
@@ -92,13 +95,44 @@ export default async function ProfilePage({
         })}
       </nav>
 
-      <PostTimeline
-        posts={page.posts}
-        nextCursor={page.nextCursor}
-        hasMore={page.hasMore}
-        basePath={`/profile/${profile.username}?tab=${tab}`}
-        empty={<EmptyState title={emptyTitleForTab} />}
-      />
+      <Suspense fallback={<PostFeedSkeleton />}>
+        <ProfileFeed
+          viewer={viewer}
+          profile={profile}
+          scope={scope}
+          tab={tab}
+          cursor={query.cursor}
+          emptyTitle={emptyTitleForTab}
+        />
+      </Suspense>
     </div>
+  );
+}
+
+async function ProfileFeed({
+  viewer,
+  profile,
+  scope,
+  tab,
+  cursor,
+  emptyTitle,
+}: {
+  viewer: Viewer;
+  profile: ActorSummary;
+  scope: PostScope;
+  tab: Tab;
+  cursor?: string;
+  emptyTitle: string;
+}) {
+  const page = await loadPosts(viewer, scope, { cursor });
+
+  return (
+    <PostTimeline
+      posts={page.posts}
+      nextCursor={page.nextCursor}
+      hasMore={page.hasMore}
+      basePath={`/profile/${profile.username}?tab=${tab}`}
+      empty={<EmptyState title={emptyTitle} />}
+    />
   );
 }

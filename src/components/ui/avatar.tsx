@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cn } from "@/lib/cn";
 
 /**
@@ -71,17 +72,12 @@ export function Avatar({
       style={src ? undefined : { backgroundColor: tone.background, color: tone.ink }}
     >
       {src ? (
-        // next/image em um host externo exigiria configurá-lo no next.config;
-        // para avatares pequenos, a tag nativa com lazy é suficiente. O resto
-        // do site usa next/image normalmente.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={src}
           alt={decorative ? "" : `Foto de ${name}`}
           width={dimensions}
           height={dimensions}
           loading="lazy"
-          decoding="async"
           className="h-full w-full object-cover"
         />
       ) : (

@@ -1,7 +1,10 @@
+import { Suspense } from "react";
 import { requireViewer } from "@/lib/session";
 import { loadPosts } from "@/lib/data/posts";
 import { PostTimeline } from "@/components/timeline/post-timeline";
+import { PostFeedSkeleton } from "@/components/timeline/post-feed-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { Viewer } from "@/lib/session";
 
 /**
  * Explorar.
@@ -16,7 +19,6 @@ export default async function ExplorePage({
 }) {
   const { cursor } = await searchParams;
   const viewer = await requireViewer();
-  const page = await loadPosts(viewer, { kind: "recentes" }, { cursor });
 
   return (
     <>
@@ -24,15 +26,23 @@ export default async function ExplorePage({
         <h1 className="font-display text-lg text-ink">Explorar</h1>
       </div>
 
-      <PostTimeline
-        posts={page.posts}
-        nextCursor={page.nextCursor}
-        hasMore={page.hasMore}
-        basePath="/explore"
-        empty={
-          <EmptyState title="Nada para explorar ainda" />
-        }
-      />
+      <Suspense fallback={<PostFeedSkeleton />}>
+        <ExploreFeed viewer={viewer} cursor={cursor} />
+      </Suspense>
     </>
+  );
+}
+
+async function ExploreFeed({ viewer, cursor }: { viewer: Viewer; cursor?: string }) {
+  const page = await loadPosts(viewer, { kind: "recentes" }, { cursor });
+
+  return (
+    <PostTimeline
+      posts={page.posts}
+      nextCursor={page.nextCursor}
+      hasMore={page.hasMore}
+      basePath="/explore"
+      empty={<EmptyState title="Nada para explorar ainda" />}
+    />
   );
 }
