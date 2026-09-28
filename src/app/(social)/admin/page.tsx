@@ -6,8 +6,10 @@ import {
   NpcRow,
   OrganizationCreateForm,
   OrganizationRow,
+  PlayerCharacterRow,
   type NpcDraft,
   type OrgDraft,
+  type PlayerSelectItem,
 } from "@/components/admin/admin-forms";
 
 /**
@@ -22,7 +24,7 @@ export default async function AdminPage() {
   if (!viewer.isGm) redirect("/home");
 
   const supabase = await createClient();
-  const [npcResult, orgResult] = await Promise.all([
+  const [npcResult, orgResult, playerCharsResult, playersResult] = await Promise.all([
     supabase
       .from("characters")
       .select("id, name, username, bio, actors!inner(id)")
@@ -32,6 +34,17 @@ export default async function AdminPage() {
       .from("organizations")
       .select("id, name, username, description, type, actors!inner(id)")
       .order("name", { ascending: true }),
+    supabase
+      .from("characters")
+      .select("id, name, username, owner:profiles!characters_owner_id_fkey(display_name, role)")
+      .eq("is_npc", false)
+      .not("owner_id", "is", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("profiles")
+      .select("id, display_name")
+      .eq("role", "player")
+      .order("display_name", { ascending: true }),
   ]);
 
   const npcs = ((npcResult.data ?? []) as NpcDraft[]).map((row) => ({
@@ -42,6 +55,20 @@ export default async function AdminPage() {
     ...row,
     actorId: row.actors?.id ?? row.id,
   }));
+  const playerCharacters = ((playerCharsResult.data ?? []) as Array<{
+    id: string;
+    name: string;
+    username: string;
+    owner?: { display_name: string; role: string } | null;
+  }>)
+    .filter((row) => row.owner?.role === "player")
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      username: row.username,
+      ownerName: row.owner?.display_name ?? "Jogador(a)",
+    }));
+  const players = ((playersResult.data ?? []) as PlayerSelectItem[]).filter((row) => row.id);
 
   return (
     <div className="px-4 py-5">
@@ -57,7 +84,9 @@ export default async function AdminPage() {
               {npcs.length === 0 ? (
                 <li className="px-3 py-4 text-sm text-ink-2">Nenhum NPC ainda.</li>
               ) : (
-                npcs.map((npc) => <NpcRow key={npc.id} npc={npc} />)
+                npcs.map((npc) => (
+                  <NpcRow key={npc.id} npc={npc} players={players} />
+                ))
               )}
             </ul>
           </div>
@@ -65,6 +94,25 @@ export default async function AdminPage() {
             <NpcCreateForm />
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="secao-jogadores" className="mt-8">
+        <h2 id="secao-jogadores" className="label mb-3 text-ink-3">
+          Personagens de jogadores
+        </h2>
+        <p className="mb-3 text-xs leading-relaxed text-ink-3">
+          O Mestre pode assumir um personagem de jogador (vira NPC) ou entregar
+          um NPC a um jogador.
+        </p>
+        <ul className="border border-line">
+          {playerCharacters.length === 0 ? (
+            <li className="px-3 py-4 text-sm text-ink-2">Nenhum personagem de jogador ainda.</li>
+          ) : (
+            playerCharacters.map((character) => (
+              <PlayerCharacterRow key={character.id} character={character} />
+            ))
+          )}
+        </ul>
       </section>
 
       <section aria-labelledby="secao-orgs" className="mt-8">

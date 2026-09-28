@@ -92,6 +92,76 @@ export async function deleteNpcAction(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
+/**
+ * Mestre assume um personagem de jogador: vira NPC (sem dono). O RLS aceita
+ * porque `can_edit_character` é gm ou dono; o guarda `.eq("is_npc", false)`
+ * impede que um NPC seja "tomado" de novo por acidente.
+ */
+export async function takePlayerCharacterAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const viewer = await requireViewer();
+  if (!viewer.isGm) return { ok: false, message: "Só o Mestre administra a cidade." };
+
+  const id = String(formData.get("characterId") ?? "");
+  if (!id) return { ok: false, message: "Faltou identificar o personagem." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("characters")
+    .update({ is_npc: true, owner_id: null })
+    .eq("id", id)
+    .eq("is_npc", false);
+
+  if (error) return { ok: false, message: describeError(error.message) };
+
+  revalidatePath("/admin");
+  revalidatePath("/home");
+  return { ok: true, message: "Personagem agora é da mesa (NPC)." };
+}
+
+/**
+ * Entrega um NPC a um jogador: o personagem passa a ter dono de verdade. O
+ * destino precisa ser um perfil com papel `player`; só NPC (is_npc) entra.
+ */
+export async function grantNpcAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const viewer = await requireViewer();
+  if (!viewer.isGm) return { ok: false, message: "Só o Mestre administra a cidade." };
+
+  const id = String(formData.get("characterId") ?? "");
+  const playerId = String(formData.get("playerId") ?? "");
+  if (!id || !playerId) {
+    return { ok: false, message: "Faltou identificar o personagem ou o jogador." };
+  }
+
+  const supabase = await createClient();
+  const { data: player } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", playerId)
+    .eq("role", "player")
+    .maybeSingle();
+  if (!player) {
+    return { ok: false, message: "Jogador não encontrado. Entregue apenas para papel de jogador." };
+  }
+
+  const { error } = await supabase
+    .from("characters")
+    .update({ is_npc: false, owner_id: playerId })
+    .eq("id", id)
+    .eq("is_npc", true);
+
+  if (error) return { ok: false, message: describeError(error.message) };
+
+  revalidatePath("/admin");
+  revalidatePath("/home");
+  return { ok: true, message: "Personagem entregue ao jogador." };
+}
+
 export async function createOrganizationAction(
   _prev: ActionState,
   formData: FormData,

@@ -1,11 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2, UserCog, UserPlus } from "lucide-react";
 import {
   createNpcAction,
   updateNpcAction,
   deleteNpcAction,
+  takePlayerCharacterAction,
+  grantNpcAction,
   createOrganizationAction,
   updateOrganizationAction,
   deleteOrganizationAction,
@@ -42,6 +44,16 @@ export type OrgDraft = {
   actors?: { id: string } | null;
   actorId?: string;
 };
+export type PlayerCharacterDraft = {
+  id: string;
+  name: string;
+  username: string;
+  ownerName: string;
+};
+export type PlayerSelectItem = {
+  id: string;
+  display_name: string;
+};
 
 export function NpcCreateForm() {
   const [state, formAction, pending] = useActionState(createNpcAction, idleState);
@@ -59,7 +71,13 @@ export function NpcCreateForm() {
   );
 }
 
-export function NpcRow({ npc }: { npc: NpcDraft }) {
+export function NpcRow({
+  npc,
+  players,
+}: {
+  npc: NpcDraft;
+  players: PlayerSelectItem[];
+}) {
   const [state, formAction, pending] = useActionState(updateNpcAction, idleState);
 
   return (
@@ -105,7 +123,77 @@ export function NpcRow({ npc }: { npc: NpcDraft }) {
           Apagar
         </button>
       </form>
+
+      <NpcOwnerForm npc={npc} players={players} />
     </li>
+  );
+}
+
+export function PlayerCharacterRow({ character }: { character: PlayerCharacterDraft }) {
+  const [state, formAction, pending] = useActionState(takePlayerCharacterAction, idleState);
+
+  return (
+    <li className="border-b border-line px-3 py-2 last:border-b-0">
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-sm text-ink">{character.name}</span>
+        <span className="font-mono text-[11px] text-ink-3">@{character.username}</span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <span className="truncate text-[11px] text-ink-3">de {character.ownerName}</span>
+        <form action={formAction}>
+          <input type="hidden" name="characterId" value={character.id} />
+          <button
+            type="submit"
+            className={buttonClass("outline", "sm")}
+            disabled={pending}
+            onClick={(event) => {
+              if (!confirm(`Assumir ${character.name}? Ele deixa de ser do(a) jogador(a) e vira NPC.`)) {
+                event.preventDefault();
+              }
+            }}
+          >
+            <UserCog aria-hidden="true" className="h-3.5 w-3.5" />
+            {pending ? "Assumindo…" : "Assumir (vira NPC)"}
+          </button>
+        </form>
+      </div>
+      <Feedback state={state} />
+    </li>
+  );
+}
+
+function NpcOwnerForm({
+  npc,
+  players,
+}: {
+  npc: NpcDraft;
+  players: PlayerSelectItem[];
+}) {
+  const [state, formAction, pending] = useActionState(grantNpcAction, idleState);
+
+  if (players.length === 0) return null;
+
+  return (
+    <form action={formAction} className="mt-3 flex flex-wrap items-end gap-2 border-t border-line pt-3">
+      <div className="min-w-[9rem] flex-1">
+        <label htmlFor={`dono-npc-${npc.id}`} className="label mb-1 block text-ink-3">
+          Entregar a um jogador
+        </label>
+        <Select id={`dono-npc-${npc.id}`} name="playerId" required>
+          {players.map((player) => (
+            <option key={player.id} value={player.id}>
+              {player.display_name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <input type="hidden" name="characterId" value={npc.id} />
+      <button type="submit" className={buttonClass("outline", "sm")} disabled={pending}>
+        <UserPlus aria-hidden="true" className="h-3.5 w-3.5" />
+        {pending ? "Entregando…" : "Entregar"}
+      </button>
+      <Feedback state={state} />
+    </form>
   );
 }
 
