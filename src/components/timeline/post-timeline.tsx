@@ -1,13 +1,14 @@
 import { PostCard } from "@/components/post/post-card";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import type { PostCard as PostCardData } from "@/lib/types";
 
 /**
- * Lista de publicações com paginação por link.
+ * Lista de publicações com paginação.
  *
- * A timeline não usa estado no cliente para carregar mais: cada página é uma
- * URL, o que mantém a posição da rolagem e funciona sem JavaScript.
+ * No servidor cada página é uma URL, o que preserva a rolagem e funciona sem
+ * JavaScript. No navegador (feeds pré-renderizados) a paginação é por botão via
+ * `onLoadMore`, anexando a próxima página à atual.
  */
 export function PostTimeline({
   posts,
@@ -16,6 +17,7 @@ export function PostTimeline({
   basePath,
   empty,
   className,
+  onLoadMore,
 }: {
   posts: PostCardData[];
   nextCursor: string | null;
@@ -24,6 +26,8 @@ export function PostTimeline({
   basePath: string;
   empty: React.ReactNode;
   className?: string;
+  /** Quando presente, a paginação vira um botão que anexa a próxima página. */
+  onLoadMore?: () => void;
 }) {
   if (posts.length === 0) return <>{empty}</>;
 
@@ -35,14 +39,20 @@ export function PostTimeline({
 
       {hasMore && nextCursor ? (
         <div className="flex justify-center px-4 py-6">
-          <ButtonLink
-            href={withCursor(basePath, nextCursor)}
-            variant="outline"
-            size="sm"
-            scroll={false}
-          >
-            Publicações anteriores
-          </ButtonLink>
+          {onLoadMore ? (
+            <Button variant="outline" size="sm" onClick={onLoadMore}>
+              Publicações anteriores
+            </Button>
+          ) : (
+            <ButtonLink
+              href={withCursor(basePath, nextCursor)}
+              variant="outline"
+              size="sm"
+              scroll={false}
+            >
+              Publicações anteriores
+            </ButtonLink>
+          )}
         </div>
       ) : (
         <p className={cn("px-4 py-8 text-center text-xs text-ink-3")}>

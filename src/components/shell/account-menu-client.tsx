@@ -8,6 +8,7 @@ import { setActiveActorAction, signOutAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp } from "@/components/ui/account-type";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/menu";
+import { useSession } from "@/components/shell/session-provider";
 import { accountTypeOf, site } from "@/lib/site";
 import type { ActorSummary } from "@/lib/types";
 
@@ -29,6 +30,7 @@ export function AccountMenuClient({
   onNavigate?: () => void;
 }) {
   const router = useRouter();
+  const { setActiveActor } = useSession();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
   const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
@@ -109,7 +111,11 @@ export function AccountMenuClient({
               {identities
                 .filter((actor) => actor.id !== active?.id)
                 .map((actor) => (
-                  <form key={actor.id} action={setActiveActorAction.bind(null, actor.id)}>
+                  <form
+                    key={actor.id}
+                    action={setActiveActorAction.bind(null, actor.id)}
+                    onSubmit={() => setActiveActor(actor.id)}
+                  >
                     <button
                       type="submit"
                       disabled={pending}

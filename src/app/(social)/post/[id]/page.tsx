@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireViewer } from "@/lib/session";
 import { loadPostById, loadReplies } from "@/lib/data/posts";
+import { createClient } from "@/lib/supabase/server";
 import { PostCard } from "@/components/post/post-card";
 import { ReplyComposer } from "@/components/composer/reply-composer";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -11,7 +12,8 @@ import { fullTimestamp } from "@/lib/format/datetime";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const viewer = await requireViewer();
-  const post = await loadPostById(viewer, id);
+  const client = await createClient();
+  const post = await loadPostById(client, viewer, id);
   if (!post) return { title: "Publicação" };
 
   const text = post.reposted ? post.reposted.post.content : post.content;
@@ -30,11 +32,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const viewer = await requireViewer();
-  const post = await loadPostById(viewer, id);
+  const client = await createClient();
+  const post = await loadPostById(client, viewer, id);
 
   if (!post) notFound();
 
-  const replies = await loadReplies(viewer, id);
+  const replies = await loadReplies(client, viewer, id);
 
   return (
     <>

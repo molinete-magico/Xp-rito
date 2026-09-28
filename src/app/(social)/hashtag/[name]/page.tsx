@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireViewer } from "@/lib/session";
 import { loadPosts } from "@/lib/data/posts";
+import { createClient } from "@/lib/supabase/server";
 import { PostTimeline } from "@/components/timeline/post-timeline";
 import { PostFeedSkeleton } from "@/components/timeline/post-feed-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -55,7 +56,7 @@ async function HashtagFeed({
   tag: string;
   cursor?: string;
 }) {
-  const page = await loadPosts(viewer, { kind: "hashtag", name: tag }, { cursor });
+  const page = await loadPosts(await createClient(), viewer, { kind: "hashtag", name: tag }, { cursor });
 
   if (page.posts.length === 0 && !cursor) notFound();
 

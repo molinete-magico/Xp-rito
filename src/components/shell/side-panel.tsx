@@ -1,24 +1,70 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { loadSuggestions, loadPopularHashtags } from "@/lib/data/actors";
+import { useSession } from "@/components/shell/session-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp, Handle } from "@/components/ui/account-type";
 import { accountTypeOf } from "@/lib/site";
 import { hashtagPath } from "@/lib/text/content";
 import { compactNumber } from "@/lib/format/datetime";
+import { cn } from "@/lib/cn";
 import type { ActorSummary } from "@/lib/types";
 
 /**
  * Painel de descoberta.
  *
- * Sem busca e sem algoritmo: quem vale a pena seguir e o que a mesa está falando
- * agora.
+ * Busca as sugestões e os assuntos do momento no navegador, com as leis do RLS
+ * do servidor. Enquanto resolve, mostra a silhueta das linhas; refaz quando a
+ * sessão muda de identidade.
  */
-export function SidePanel({
-  suggestions,
-  hashtags,
-}: {
-  suggestions: ActorSummary[];
-  hashtags: { name: string; posts: number }[];
-}) {
+export function SidePanel() {
+  const { viewer, client, isLoading } = useSession();
+  const [data, setData] = useState<{ suggestions: ActorSummary[]; hashtags: { name: string; posts: number }[] } | null>(null);
+
+  const key = viewer?.activeActorId ?? "";
+
+  useEffect(() => {
+    if (!client || !viewer || isLoading) return;
+    let cancelled = false;
+
+    Promise.all([loadSuggestions(client, viewer), loadPopularHashtags(client)]).then(
+      ([suggestions, hashtags]) => {
+        if (!cancelled) setData({ suggestions, hashtags });
+      },
+      () => {
+        if (!cancelled) setData({ suggestions: [], hashtags: [] });
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, viewer, key, isLoading]);
+
+  if (!data) {
+    return (
+      <div className="space-y-6" aria-hidden="true">
+        <div>
+          <span className="mb-2 block h-2.5 w-28 animate-pulse rounded-sm bg-sunken" />
+          <div className="border border-line">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="flex items-center gap-2.5 border-b border-line px-3 py-2.5 last:border-b-0">
+                <span className="size-8 shrink-0 animate-pulse rounded-xs border border-line bg-sunken" />
+                <div className="flex-1 space-y-1.5">
+                  <span className="block h-2.5 w-24 animate-pulse rounded-sm bg-sunken" />
+                  <span className="block h-2 w-14 animate-pulse rounded-sm bg-sunken" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { suggestions, hashtags } = data;
   if (suggestions.length === 0 && hashtags.length === 0) return null;
 
   return (
@@ -69,7 +115,7 @@ export function SidePanel({
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-ink">{actor.display_name}</span>
-                    <span className="mt-0.5 flex items-center gap-1.5">
+                    <span className={cn("mt-0.5 flex items-center gap-1.5")}>
                       <AccountTypeStamp type={accountTypeOf(actor)} />
                       <Handle username={actor.username} size="xs" />
                     </span>

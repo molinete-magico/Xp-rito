@@ -1,49 +1,21 @@
-import { requireViewer } from "@/lib/session";
-import { loadSuggestions, loadPopularHashtags } from "@/lib/data/actors";
+import { SessionProvider } from "@/components/shell/session-provider";
 import { AppShell } from "@/components/shell/app-shell";
-import { SidePanel } from "@/components/shell/side-panel";
-import { createClient } from "@/lib/supabase/server";
 import { site } from "@/lib/site";
-
-// Área autenticada: cada requisição depende das cookies e da sessão. Nunca
-// tornar isto estático, porque uma página pré-renderizada sem usuário seria
-// conteúdo errado para todo mundo.
-export const dynamic = "force-dynamic";
 
 /**
  * Layout da rede social.
  *
- * Carrega o que é comum a todas as telas: quem está entrando, o contador de não
- * lidas e quem vale a pena seguir. Cada página carrega só o seu conteúdo. Como
- * `getViewer` é memoizado por requisição, a página que também chamar
- * `requireViewer` não repete a consulta.
+ * Moldura pré-renderizada: entre autenticação, identidade ativa, painel de
+ * descoberta e contador de não lidas ficam no navegador (SessionProvider +
+ * AppShell), porque dependem da sessão que só o cliente conhece. Quem precisa
+ * do servidor — perfil, hashtag, post, ajustes — continua dinâmico, mas as
+ * telas de feed saem estáticas do deploy.
  */
-export default async function SocialLayout({ children }: { children: React.ReactNode }) {
-  const viewer = await requireViewer();
-  const supabase = await createClient();
-
-  const actorIds = viewer.identities.map((actor) => actor.id);
-
-  const [suggestions, hashtags, unread] = await Promise.all([
-    loadSuggestions(viewer),
-    loadPopularHashtags(),
-    actorIds.length > 0
-      ? supabase.rpc("count_unread_notifications").then(({ data }) =>
-          typeof data === "number" ? data : 0,
-        )
-      : Promise.resolve(0),
-  ]);
-
+export default function SocialLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell
-      identities={viewer.identities}
-      activeActorId={viewer.activeActorId}
-      isGm={viewer.isGm}
-      initialUnread={unread}
-      sidePanel={<SidePanel suggestions={suggestions} hashtags={hashtags} />}
-    >
-      {children}
-    </AppShell>
+    <SessionProvider>
+      <AppShell>{children}</AppShell>
+    </SessionProvider>
   );
 }
 

@@ -1,48 +1,19 @@
-import { Suspense } from "react";
-import { requireViewer } from "@/lib/session";
-import { loadPosts } from "@/lib/data/posts";
-import { PostTimeline } from "@/components/timeline/post-timeline";
-import { PostFeedSkeleton } from "@/components/timeline/post-feed-skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
-import type { Viewer } from "@/lib/session";
+import { FeedStream } from "@/components/timeline/feed-stream";
 
 /**
  * Explorar.
  *
- * Só duas leituras, ambas consultas diretas: tudo que a mesa escreveu e as
- * respostas do dono do personagem.
+ * Tudo que a mesa escreveu, do mais recente para o mais antigo. A tela é
+ * estática; a leitura acontece no navegador, com as mesmas regras do servidor.
  */
-export default async function ExplorePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ cursor?: string }>;
-}) {
-  const { cursor } = await searchParams;
-  const viewer = await requireViewer();
-
+export default function ExplorePage() {
   return (
     <>
       <div className="border-b border-line px-4 py-3">
         <h1 className="font-display text-lg text-ink">Explorar</h1>
       </div>
 
-      <Suspense fallback={<PostFeedSkeleton />}>
-        <ExploreFeed viewer={viewer} cursor={cursor} />
-      </Suspense>
+      <FeedStream scope={{ kind: "recentes" }} basePath="/explore" emptyTitle="Nada para explorar ainda" />
     </>
-  );
-}
-
-async function ExploreFeed({ viewer, cursor }: { viewer: Viewer; cursor?: string }) {
-  const page = await loadPosts(viewer, { kind: "recentes" }, { cursor });
-
-  return (
-    <PostTimeline
-      posts={page.posts}
-      nextCursor={page.nextCursor}
-      hasMore={page.hasMore}
-      basePath="/explore"
-      empty={<EmptyState title="Nada para explorar ainda" />}
-    />
   );
 }

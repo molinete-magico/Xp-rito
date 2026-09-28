@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireViewer } from "@/lib/session";
 import { loadActorByUsername } from "@/lib/data/actors";
 import { loadPosts } from "@/lib/data/posts";
+import { createClient } from "@/lib/supabase/server";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { PostComposer } from "@/components/composer/post-composer";
 import { PostTimeline } from "@/components/timeline/post-timeline";
@@ -46,7 +47,7 @@ export default async function ProfilePage({
 }) {
   const [{ username }, query] = await Promise.all([params, searchParams]);
   const viewer = await requireViewer();
-  const profile = await loadActorByUsername(viewer, username.toLowerCase());
+  const profile = await loadActorByUsername(await createClient(), viewer, username.toLowerCase());
 
   if (!profile) notFound();
 
@@ -124,7 +125,7 @@ async function ProfileFeed({
   cursor?: string;
   emptyTitle: string;
 }) {
-  const page = await loadPosts(viewer, scope, { cursor });
+  const page = await loadPosts(await createClient(), viewer, scope, { cursor });
 
   return (
     <PostTimeline

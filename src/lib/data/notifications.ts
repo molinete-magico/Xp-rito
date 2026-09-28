@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import { toActorCard, type Viewer } from "@/lib/session";
+import { toActorCard, type DataClient } from "@/lib/data/identities";
+import type { Viewer } from "@/lib/session";
 import type { NotificationView } from "@/lib/types";
 import type { NotificationType } from "@/types/database";
 
@@ -20,6 +20,7 @@ const NOTIFICATION_FIELDS = `id, type, read, created_at, post_id, actor:actors!n
 const PAGE_SIZE = 30;
 
 export async function loadNotifications(
+  client: DataClient,
   viewer: Viewer,
   options: { cursor?: string | null } = {},
 ): Promise<NotificationPage> {
@@ -27,8 +28,6 @@ export async function loadNotifications(
   if (actorIds.length === 0) {
     return { items: [], unread: 0, nextCursor: null, hasMore: false };
   }
-
-  const client = await createClient();
 
   const unreadQuery = client
     .from("notifications")

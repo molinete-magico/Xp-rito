@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import { toActorCard, type Viewer } from "@/lib/session";
+import { toActorCard, type DataClient } from "@/lib/data/identities";
+import type { Viewer } from "@/lib/session";
 import type { ActorProfile, ActorSummary } from "@/lib/types";
 import type { OrganizationType } from "@/types/database";
 
@@ -9,22 +9,25 @@ const ACTOR_FIELDS =
   "id, display_name, username, avatar_url, banner_url, entity_type, character:characters(id, is_npc, bio, banner_url), organization:organizations(id, type, description, banner_url)";
 
 export async function loadActorByUsername(
+  client: DataClient,
   viewer: Viewer,
   username: string,
 ): Promise<ActorProfile | null> {
-  const client = await createClient();
   const { data } = await client.from("actors").select(ACTOR_FIELDS).eq("username", username).maybeSingle();
 
   if (!data) return null;
 
-  return toProfile(viewer, data);
+  return toProfile(client, viewer, data);
 }
 
-export async function loadActorById(viewer: Viewer, actorId: string): Promise<ActorProfile | null> {
-  const client = await createClient();
+export async function loadActorById(
+  client: DataClient,
+  viewer: Viewer,
+  actorId: string,
+): Promise<ActorProfile | null> {
   const { data } = await client.from("actors").select(ACTOR_FIELDS).eq("id", actorId).maybeSingle();
   if (!data) return null;
-  return toProfile(viewer, data);
+  return toProfile(client, viewer, data);
 }
 
 type ActorRow = Parameters<typeof toActorCard>[0] & {
@@ -37,8 +40,7 @@ type ActorRow = Parameters<typeof toActorCard>[0] & {
   } | null;
 };
 
-async function toProfile(viewer: Viewer, row: ActorRow): Promise<ActorProfile> {
-  const client = await createClient();
+async function toProfile(client: DataClient, viewer: Viewer, row: ActorRow): Promise<ActorProfile> {
   const isCharacter = row.entity_type === "character";
 
   const [postCount, followerCount, followingCount, likeCount, followingRow, editable] = await Promise.all([
@@ -63,7 +65,6 @@ async function toProfile(viewer: Viewer, row: ActorRow): Promise<ActorProfile> {
 
   const card = toActorCard(row);
   const selfId = viewer.activeActorId;
-
 
   return {
     ...card,
@@ -96,10 +97,7 @@ async function count(query: PromiseLike<{ count: number | null }>): Promise<numb
   return value ?? 0;
 }
 
-async function likesReceived(
-  client: Awaited<ReturnType<typeof createClient>>,
-  actorId: string,
-): Promise<number> {
+async function likesReceived(client: DataClient, actorId: string): Promise<number> {
   const { data: posts } = await client.from("posts").select("id").eq("actor_id", actorId).limit(1000);
   const ids = (posts ?? []).map((post) => post.id);
   if (ids.length === 0) return 0;
@@ -115,8 +113,11 @@ async function likesReceived(
  * Identidades sugeridas: as mais ativas que a pessoa ainda não segue. Uma
  * consulta só, sem N+1.
  */
-export async function loadSuggestions(viewer: Viewer, limit = 5): Promise<ActorSummary[]> {
-  const client = await createClient();
+export async function loadSuggestions(
+  client: DataClient,
+  viewer: Viewer,
+  limit = 5,
+): Promise<ActorSummary[]> {
   const { data } = await client
     .from("actors")
     .select(ACTOR_FIELDS)
@@ -139,8 +140,10 @@ export async function loadSuggestions(viewer: Viewer, limit = 5): Promise<ActorS
 }
 
 /** Hashtags mais usadas, para a navegação inicial. */
-export async function loadPopularHashtags(limit = 8): Promise<{ name: string; posts: number }[]> {
-  const client = await createClient();
+export async function loadPopularHashtags(
+  client: DataClient,
+  limit = 8,
+): Promise<{ name: string; posts: number }[]> {
   const { data } = await client
     .from("post_hashtags")
     .select("hashtag_id, hashtags!inner(name)")

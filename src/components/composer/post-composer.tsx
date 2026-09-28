@@ -7,6 +7,7 @@ import { createPostAction } from "@/app/actions/posts";
 import { Avatar } from "@/components/ui/avatar";
 import { IdentitySwitcher } from "@/components/composer/identity-switcher";
 import { MediaUploader, type PendingMedia } from "@/components/composer/media-uploader";
+import { useSession } from "@/components/shell/session-provider";
 import { FormMessage, TextArea } from "@/components/ui/field";
 import { buttonClass } from "@/components/ui/button";
 import { idleState } from "@/lib/validation/schemas";
@@ -23,19 +24,25 @@ const MAX_LENGTH = 1000;
  * demorar. Ctrl/Cmd+Enter publica.
  */
 export function PostComposer({
-  identities,
-  activeActorId,
+  identities: explicitIdentities,
+  activeActorId: explicitActiveActorId,
   compact = false,
   placeholder,
 }: {
-  identities: ActorSummary[];
-  activeActorId: string | null;
+  identities?: ActorSummary[];
+  activeActorId?: string | null;
   compact?: boolean;
   placeholder?: string;
 }) {
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
+  const session = useSession();
+  const identities = explicitIdentities ?? session.viewer?.identities ?? [];
+  const activeActorId =
+    explicitActiveActorId !== undefined
+      ? explicitActiveActorId
+      : (session.viewer?.activeActorId ?? null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(createPostAction, idleState);
   const [content, setContent] = useState("");
   const [media, setMedia] = useState<PendingMedia[]>([]);
@@ -60,6 +67,7 @@ export function PostComposer({
     if (!state.ok) return;
     formRef.current?.reset();
     textareaRef.current?.focus();
+    window.dispatchEvent(new Event("xpirito:refresh"));
     router.refresh();
   }, [state.ok, router]);
 

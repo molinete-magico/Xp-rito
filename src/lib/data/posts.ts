@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import { toActorCard, type Viewer } from "@/lib/session";
+import { toActorCard, type DataClient } from "@/lib/data/identities";
+import type { Viewer } from "@/lib/session";
 import type { ActorSummary, PostCard, PostMediaView } from "@/lib/types";
 
 /**
@@ -63,10 +63,9 @@ export type PostScope =
   | { kind: "hashtag"; name: string }
   | { kind: "busca"; term: string };
 
-type Client = Awaited<ReturnType<typeof createClient>>;
+type Client = DataClient;
 
 const EMPTY_PAGE: PostPage = { posts: [], nextCursor: null, hasMore: false };
-
 export interface PostPage {
   posts: PostCard[];
   nextCursor: string | null;
@@ -82,13 +81,13 @@ const EXCLUDES_THREADED = new Set<PostScope["kind"]>([
 ]);
 
 export async function loadPosts(
+  client: DataClient,
   viewer: Viewer,
   scope: PostScope,
   options: { cursor?: string | null; limit?: number } = {},
 ): Promise<PostPage> {
   const limit = options.limit ?? PAGE_SIZE;
   const cursor = parseCursor(options.cursor);
-  const client = await createClient();
 
   const { rows, hasMore } = await fetchPage(client, scope, limit, cursor);
   if (rows.length === 0) return { ...EMPTY_PAGE, hasMore };
@@ -167,15 +166,22 @@ async function fetchPage(client: Client, scope: PostScope, limit: number, cursor
   return { rows: rows.slice(0, limit), hasMore: rows.length > limit };
 }
 
-export async function loadPostById(viewer: Viewer, postId: string): Promise<PostCard | null> {
-  const cards = await loadPostsByIds(viewer, [postId]);
+export async function loadPostById(
+  client: DataClient,
+  viewer: Viewer,
+  postId: string,
+): Promise<PostCard | null> {
+  const cards = await loadPostsByIds(client, viewer, [postId]);
   return cards.get(postId) ?? null;
 }
 
-export async function loadPostsByIds(viewer: Viewer, ids: string[]): Promise<Map<string, PostCard>> {
+export async function loadPostsByIds(
+  client: DataClient,
+  viewer: Viewer,
+  ids: string[],
+): Promise<Map<string, PostCard>> {
   if (ids.length === 0) return new Map();
 
-  const client = await createClient();
   const { data } = await client.from("posts").select(POST_FIELDS).in("id", ids);
   const rows = (data ?? []) as unknown as PostRow[];
   const cards = await hydrate(client, viewer, rows);
@@ -183,8 +189,13 @@ export async function loadPostsByIds(viewer: Viewer, ids: string[]): Promise<Map
 }
 
 /** Respostas de um post, em ordem cronológica (a mais antiga primeiro). */
-export async function loadReplies(viewer: Viewer, postId: string, limit = 50): Promise<PostCard[]> {
-  const page = await loadPosts(viewer, { kind: "respostas", postId }, { limit });
+export async function loadReplies(
+  client: DataClient,
+  viewer: Viewer,
+  postId: string,
+  limit = 50,
+): Promise<PostCard[]> {
+  const page = await loadPosts(client, viewer, { kind: "respostas", postId }, { limit });
   return [...page.posts].sort((a, b) => a.created_at.localeCompare(b.created_at));
 }
 
