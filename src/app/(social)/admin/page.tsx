@@ -25,17 +25,23 @@ export default async function AdminPage() {
   const [npcResult, orgResult] = await Promise.all([
     supabase
       .from("characters")
-      .select("id, name, username, bio")
+      .select("id, name, username, bio, actors!inner(id)")
       .eq("is_npc", true)
       .order("name", { ascending: true }),
     supabase
       .from("organizations")
-      .select("id, name, username, description, type")
+      .select("id, name, username, description, type, actors!inner(id)")
       .order("name", { ascending: true }),
   ]);
 
-  const npcs = (npcResult.data ?? []) as NpcDraft[];
-  const orgs = (orgResult.data ?? []) as OrgDraft[];
+  const npcs = ((npcResult.data ?? []) as NpcDraft[]).map((row) => ({
+    ...row,
+    actorId: row.actors?.id ?? row.id,
+  }));
+  const orgs = ((orgResult.data ?? []) as OrgDraft[]).map((row) => ({
+    ...row,
+    actorId: row.actors?.id ?? row.id,
+  }));
 
   return (
     <div className="px-4 py-5">

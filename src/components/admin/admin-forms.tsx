@@ -12,6 +12,7 @@ import {
 } from "@/app/actions/admin";
 import { Field, TextArea, TextInput, Select } from "@/components/ui/field";
 import { buttonClass } from "@/components/ui/button";
+import { ImageRow } from "@/components/settings/image-form";
 import { idleState, type ActionState } from "@/lib/validation/schemas";
 import { organizationTypeLabels } from "@/lib/site";
 
@@ -24,13 +25,22 @@ import { organizationTypeLabels } from "@/lib/site";
  * transformar a lista inteira em campos.
  */
 
-export type NpcDraft = { id: string; name: string; username: string; bio: string | null };
+export type NpcDraft = {
+  id: string;
+  name: string;
+  username: string;
+  bio: string | null;
+  actors?: { id: string } | null;
+  actorId?: string;
+};
 export type OrgDraft = {
   id: string;
   name: string;
   username: string;
   description: string | null;
   type: string;
+  actors?: { id: string } | null;
+  actorId?: string;
 };
 
 export function NpcCreateForm() {
@@ -61,17 +71,25 @@ export function NpcRow({ npc }: { npc: NpcDraft }) {
 
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-ink-2 hover:underline">Editar</summary>
-        <form action={formAction} className="mt-3 space-y-4 border-t border-line pt-3">
-          <input type="hidden" name="characterId" value={npc.id} />
-          <NpcFields state={state} mode="edit" defaults={npc} />
-          <div className="flex items-center justify-between gap-3">
-            <Feedback state={state} />
-            <button type="submit" disabled={pending} className={buttonClass("outline", "sm")}>
-              <Save aria-hidden="true" className="h-3.5 w-3.5" />
-              {pending ? "Salvando…" : "Salvar"}
-            </button>
-          </div>
-        </form>
+        <div className="mt-3 space-y-4 border-t border-line pt-3">
+          <form action={formAction} className="space-y-4">
+            <input type="hidden" name="characterId" value={npc.id} />
+            <NpcFields state={state} mode="edit" defaults={npc} />
+            <div className="flex items-center justify-between gap-3">
+              <Feedback state={state} />
+              <button type="submit" disabled={pending} className={buttonClass("outline", "sm")}>
+                <Save aria-hidden="true" className="h-3.5 w-3.5" />
+                {pending ? "Salvando…" : "Salvar"}
+              </button>
+            </div>
+          </form>
+          <section aria-labelledby={`imagens-npc-${npc.id}`}>
+            <h3 id={`imagens-npc-${npc.id}`} className="label mb-2 text-ink-3">
+              Foto e capa
+            </h3>
+            <ImageRow actorId={npc.actorId ?? ""} />
+          </section>
+        </div>
       </details>
 
       <form action={deleteNpcAction} className="mt-2">
@@ -122,17 +140,25 @@ export function OrganizationRow({ org }: { org: OrgDraft }) {
 
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-ink-2 hover:underline">Editar</summary>
-        <form action={formAction} className="mt-3 space-y-4 border-t border-line pt-3">
-          <input type="hidden" name="organizationId" value={org.id} />
-          <OrganizationFields state={state} mode="edit" defaults={org} />
-          <div className="flex items-center justify-between gap-3">
-            <Feedback state={state} />
-            <button type="submit" disabled={pending} className={buttonClass("outline", "sm")}>
-              <Save aria-hidden="true" className="h-3.5 w-3.5" />
-              {pending ? "Salvando…" : "Salvar"}
-            </button>
-          </div>
-        </form>
+        <div className="mt-3 space-y-4 border-t border-line pt-3">
+          <form action={formAction} className="space-y-4">
+            <input type="hidden" name="organizationId" value={org.id} />
+            <OrganizationFields state={state} mode="edit" defaults={org} />
+            <div className="flex items-center justify-between gap-3">
+              <Feedback state={state} />
+              <button type="submit" disabled={pending} className={buttonClass("outline", "sm")}>
+                <Save aria-hidden="true" className="h-3.5 w-3.5" />
+                {pending ? "Salvando…" : "Salvar"}
+              </button>
+            </div>
+          </form>
+          <section aria-labelledby={`imagens-org-${org.id}`}>
+            <h3 id={`imagens-org-${org.id}`} className="label mb-2 text-ink-3">
+              Foto e capa
+            </h3>
+            <ImageRow actorId={org.actorId ?? ""} />
+          </section>
+        </div>
       </details>
 
       <form action={deleteOrganizationAction} className="mt-2">
