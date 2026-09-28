@@ -16,6 +16,8 @@ import { isValidUsername } from "@/lib/validation/username";
 const CORPUS = [
   "arthur",
   "abc",
+  "Mesomorphie",
+  "MESOMORPHIE",
   "helena_duarte",
   "a.b.c",
   "x1_y",

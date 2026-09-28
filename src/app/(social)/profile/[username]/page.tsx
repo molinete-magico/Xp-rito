@@ -11,7 +11,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
 
   return (
     <ProfileStream
-      username={username.toLowerCase()}
+      username={username}
       placeholder={`O que está acontecendo, ${username.split(" ")[0]}?`}
     />
   );

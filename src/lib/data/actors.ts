@@ -13,9 +13,13 @@ export async function loadActorByUsername(
   viewer: Viewer,
   username: string,
 ): Promise<ActorProfile | null> {
-  const { data } = await client.from("actors").select(ACTOR_FIELDS).eq("username", username).maybeSingle();
+  // Caso-insensível: o @ mostra a caixa que o dono digitou, mas qualquer caixa
+  // leva à mesma conta. `_` é coringa do LIKE, então neutralizamos primeiro e
+  // conferimos o resultado na forma canônica por garantia.
+  const pattern = username.replace(/_/g, "\\_");
+  const { data } = await client.from("actors").select(ACTOR_FIELDS).ilike("username", pattern).maybeSingle();
 
-  if (!data) return null;
+  if (!data || data.username.toLowerCase() !== username.toLowerCase()) return null;
 
   return toProfile(client, viewer, data);
 }

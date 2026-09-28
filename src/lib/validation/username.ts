@@ -5,13 +5,16 @@
  * (supabase/migrations/20260928000100_init_schema.sql). Estas funções são o
  * espelho em TypeScript, e `tests/username-parity.test.ts` executa um corpus
  * pelos dois lados para garantir que nunca divirjam.
+ *
+ * A caixa é livre: "Mesomorphie" é a mesma conta que "mesomorphie", e a
+ * unicidade é frente à forma em minúsculas. O que a pessoa digitou aparece.
  */
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 30;
 
-/** Letras minúsculas, dígitos, ponto e sublinhado. Sem acentos, sem hífen. */
-export const USERNAME_PATTERN = /^[a-z0-9._]+$/;
+/** Letras, dígitos, ponto e sublinhado, em qualquer caixa. Sem acentos, sem hífen. */
+export const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
 
 export type UsernameProblem =
   | "vazio"
@@ -37,7 +40,7 @@ export const usernameProblems: Record<UsernameProblem, string> = {
   vazio: "Escolha um @.",
   curto: `Use ao menos ${USERNAME_MIN} caracteres.`,
   longo: `Use no máximo ${USERNAME_MAX} caracteres.`,
-  caracteres: "Use apenas letras minúsculas, números, ponto e sublinhado.",
+  caracteres: "Use apenas letras, números, ponto e sublinhado.",
   "ponto-inicial": "O @ não pode começar com ponto.",
   "ponto-final": "O @ não pode terminar com ponto.",
   "ponto-duplo": "Não use dois pontos seguidos.",
@@ -47,11 +50,10 @@ export function isValidUsername(value: string): boolean {
   return checkUsername(value) === null;
 }
 
-/** Normaliza entrada do usuário: minúsculas, sem @, sem espaços nas bordas. */
+/** Normaliza entrada do usuário: sem @ à frente, sem espaços. A caixa fica como foi digitada. */
 export function normalizeUsername(value: string): string {
   return value
     .trim()
     .replace(/^@+/, "")
-    .toLowerCase()
     .replace(/\s+/g, "");
 }
