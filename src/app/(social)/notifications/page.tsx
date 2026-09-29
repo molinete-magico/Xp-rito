@@ -9,7 +9,7 @@ import { NotificationsStream } from "@/components/notifications/notifications-st
 export default function NotificationsPage() {
   return (
     <>
-      <div className="border-b border-line px-4 py-3">
+      <div className="interface-header">
         <h1 className="font-display text-lg text-ink">Notificações</h1>
       </div>
 
