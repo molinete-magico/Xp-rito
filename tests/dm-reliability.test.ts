@@ -23,7 +23,7 @@ describe("mensagens diretas: cursor de leitura e criação idempotente", () => {
 
     const firstId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
     const secondId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
-    const observedAt = "2026-09-29T14:00:00Z";
+    const observedAt = "2026-10-01T14:00:00Z";
 
     await db.asUser(FIXTURES.gm);
     await run(
@@ -58,7 +58,7 @@ describe("mensagens diretas: cursor de leitura e criação idempotente", () => {
 
     const firstId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
     const secondId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
-    const observedAt = "2026-09-29T14:05:00Z";
+    const observedAt = "2026-10-01T14:05:00Z";
 
     await db.asUser(FIXTURES.gm);
     await run(
