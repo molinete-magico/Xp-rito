@@ -105,4 +105,34 @@ describe("mensagens diretas: cursor de leitura e criação idempotente", () => {
     expect(second.id).toBe(first.id);
     expect(participants).toHaveLength(2);
   });
+  it("mantém RLS de leitura e escrita por identidade", async () => {
+    db = await createTestDatabase();
+    await db.applyMigrations();
+    const f = await seedFixtures(db);
+
+    await db.asUser(FIXTURES.joao);
+    const [conversation] = await run<{ id: string }>(
+      db,
+      "select public.dm_start_direct($1, $2) as id",
+      [f.arthurActor, f.helenaActor],
+    );
+
+    const deniedSpeaker = await db.expectDenied(
+      "insert into public.dm_messages (conversation_id, actor_id, content) values ('" +
+        conversation.id +
+        "', '" +
+        f.helenaActor +
+        "', 'não sou Helena')",
+    );
+    expect(deniedSpeaker).toMatch(/row-level security|violates row-level security/i);
+
+    await db.asUser(FIXTURES.maria);
+    const hidden = await run<{ id: string }>(
+      db,
+      "select id from public.dm_messages where conversation_id = $1",
+      [conversation.id],
+    );
+    expect(hidden).toHaveLength(0);
+  });
+
 });
