@@ -56,11 +56,7 @@ function NewMessageDialog({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!client || !viewer) return;
     const term = query.trim();
-    if (term.length < 2) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
+    if (term.length < 2) return;
 
     const currentRequest = ++requestId.current;
     const handle = window.setTimeout(async () => {
