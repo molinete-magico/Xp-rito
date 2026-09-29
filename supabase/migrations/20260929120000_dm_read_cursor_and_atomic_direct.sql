@@ -143,6 +143,8 @@ as $$
   limit least(greatest(coalesce(p_limit, 50), 0), 200);
 $$;
 
+drop function if exists public.dm_mark_read(uuid);
+
 -- O cliente informa a última mensagem que realmente carregou/visualizou.
 -- Nunca usamos now(): uma mensagem que chegou depois do carregamento continua
 -- não lida. O update é monotônico para impedir uma resposta antiga sobrescrever
