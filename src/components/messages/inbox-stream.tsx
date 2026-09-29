@@ -183,7 +183,6 @@ export function InboxStream() {
       {filteredConversations.length === 0 ? (
         <EmptyState
           title={search.trim() || (viewer.isGm && masterFilter !== "all") ? "Nenhuma conversa encontrada" : "Nenhuma conversa ainda"}
-          description={search.trim() || (viewer.isGm && masterFilter !== "all") ? "Tente outro termo ou filtro." : undefined}
           action={
             search.trim() || (viewer.isGm && masterFilter !== "all") ? (
               <button
