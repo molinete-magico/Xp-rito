@@ -74,7 +74,7 @@ function MediaFigure({
           fill
           sizes="(min-width: 1024px) 300px, 50vw"
           priority={priority}
-          className="object-contain"
+          className="object-contain object-left"
         />
       ) : (
         <div className="relative h-auto max-h-[32rem] w-full overflow-hidden" style={{ aspectRatio: String(ratio) }}>
