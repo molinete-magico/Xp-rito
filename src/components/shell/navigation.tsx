@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Compass, Home, Shield, User } from "lucide-react";
+import { Bell, Compass, Home, Search, Shield, User } from "lucide-react";
 import { NavItem, UnreadBadge } from "@/components/shell/nav-item";
 import { useUnread } from "@/components/shell/unread-provider";
 import { CharacterSwitcher } from "@/components/shell/character-switcher";
@@ -33,6 +33,7 @@ export function SideNav({
       <nav aria-label="Navegação principal" className="flex flex-col gap-0.5">
         <NavItem href="/home" label="Início" icon={<Home />} exact />
         <NavItem href="/explore" label="Explorar" icon={<Compass />} />
+        <NavItem href="/search" label="Buscar" icon={<Search />} />
         <NavItem href="/notifications" label="Notificações" icon={<Bell />} badge={unread} />
         <NavItem href={profileHref} label="Perfil" icon={<User />} />
       </nav>
@@ -63,6 +64,7 @@ export function BottomNav({
     >
       <BottomItem href="/home" label="Início" icon={<Home />} exact />
       <BottomItem href="/explore" label="Explorar" icon={<Compass />} />
+      <BottomItem href="/search" label="Buscar" icon={<Search />} />
       <BottomItem href="/notifications" label="Notificações" icon={<Bell />} badge={unread} />
       <BottomItem
         href={active ? `/profile/${active.username}` : "/settings"}

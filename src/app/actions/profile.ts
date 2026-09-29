@@ -167,6 +167,56 @@ export async function attachIdentityImageAction(formData: FormData): Promise<Act
   return { ok: true, message: "Imagem atualizada." };
 }
 
+/**
+ * Ajusta de onde a foto/capa "corta" ao ser exibida.
+ *
+ * O foco é um par/valor de `object-position`, em % (0 a 100), gravado na
+ * entidade; o trigger de espelho copia para o actor, fonte de exibição. A
+ * autorização é a mesma do upload: só identidades do próprio viewer.
+ */
+export async function setImageFocusAction(formData: FormData): Promise<ActionState> {
+  const viewer = await requireViewer();
+  const actorId = String(formData.get("actorId") ?? "");
+  const kind = formData.get("kind");
+  const x = parseInt(String(formData.get("x") ?? ""), 10);
+  const y = parseInt(String(formData.get("y") ?? ""), 10);
+
+  if (!viewer.identities.some((actor) => actor.id === actorId)) {
+    return { ok: false, message: "Essa identidade não é sua." };
+  }
+  if (kind !== "avatar" && kind !== "banner") {
+    return { ok: false, message: "Tipo de imagem desconhecido." };
+  }
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || x > 100 || y < 0 || y > 100) {
+    return { ok: false, message: "Posição inválida." };
+  }
+
+  const patch =
+    kind === "avatar"
+      ? { avatar_position_x: x, avatar_position_y: y }
+      : { banner_position_y: y };
+
+  const supabase = await createClient();
+  const { data: actor, error: actorError } = await supabase
+    .from("actors")
+    .select("character_id, organization_id")
+    .eq("id", actorId)
+    .maybeSingle();
+
+  if (actorError || !actor) return { ok: false, message: "Essa identidade não é sua." };
+
+  const { error } = actor.character_id
+    ? await supabase.from("characters").update(patch).eq("id", actor.character_id)
+    : await supabase.from("organizations").update(patch).eq("id", actor.organization_id ?? "");
+
+  if (error) return { ok: false, message: "Não foi possível ajustar a posição." };
+
+  revalidatePath("/settings");
+  revalidatePath("/home");
+  revalidatePath("/admin");
+  return { ok: true, message: "Posição salva." };
+}
+
 export async function deleteCharacterAction(formData: FormData): Promise<void> {
   const viewer = await requireViewer();
   const characterId = String(formData.get("characterId") ?? "");

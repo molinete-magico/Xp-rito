@@ -50,6 +50,7 @@ export function Avatar({
   size = "md",
   className,
   decorative = false,
+  objectPosition,
 }: {
   name: string;
   username: string;
@@ -58,6 +59,8 @@ export function Avatar({
   className?: string;
   /** Avatar ao lado do nome: o nome já está no texto, então é decorativo. */
   decorative?: boolean;
+  /** Foco de corte em `object-position`, ex. "50% 50%". Aplicado quando há imagem e o contêiner é menor que a foto. */
+  objectPosition?: string;
 }) {
   const tone = toneFor(username);
   const dimensions = size === "xs" ? 24 : size === "sm" ? 32 : size === "md" ? 40 : size === "lg" ? 56 : 96;
@@ -79,6 +82,7 @@ export function Avatar({
           height={dimensions}
           loading="lazy"
           className="h-full w-full object-cover"
+          style={objectPosition ? { objectPosition } : undefined}
         />
       ) : (
         <span aria-hidden="true">{initialsOf(name)}</span>

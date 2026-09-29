@@ -27,12 +27,12 @@ export default async function AdminPage() {
   const [npcResult, orgResult, playerCharsResult, playersResult] = await Promise.all([
     supabase
       .from("characters")
-      .select("id, name, username, bio, actors!inner(id)")
+      .select("id, name, username, bio, avatar_url, banner_url, avatar_position_x, avatar_position_y, banner_position_y, actors!inner(id)")
       .eq("is_npc", true)
       .order("name", { ascending: true }),
     supabase
       .from("organizations")
-      .select("id, name, username, description, type, actors!inner(id)")
+      .select("id, name, username, description, type, avatar_url, banner_url, avatar_position_x, avatar_position_y, banner_position_y, actors!inner(id)")
       .order("name", { ascending: true }),
     supabase
       .from("characters")

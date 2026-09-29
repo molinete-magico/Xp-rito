@@ -135,7 +135,14 @@ export function CharacterForm({
         <SubmitRow pending={pending} label="Salvar personagem" />
       </form>
 
-      <ImageRow actorId={character.id} />
+      <ImageRow
+        actorId={character.id}
+        avatarUrl={character.avatar_url}
+        bannerUrl={character.banner_url}
+        avatarX={character.avatar_position_x}
+        avatarY={character.avatar_position_y}
+        bannerY={character.banner_position_y}
+      />
 
       {canDelete ? (
         <details className="border border-line px-3 py-2">

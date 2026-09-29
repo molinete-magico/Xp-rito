@@ -32,6 +32,11 @@ export type NpcDraft = {
   name: string;
   username: string;
   bio: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
+  avatar_position_x: number;
+  avatar_position_y: number;
+  banner_position_y: number;
   actors?: { id: string } | null;
   actorId?: string;
 };
@@ -41,6 +46,11 @@ export type OrgDraft = {
   username: string;
   description: string | null;
   type: string;
+  avatar_url: string | null;
+  banner_url: string | null;
+  avatar_position_x: number;
+  avatar_position_y: number;
+  banner_position_y: number;
   actors?: { id: string } | null;
   actorId?: string;
 };
@@ -105,7 +115,14 @@ export function NpcRow({
             <h3 id={`imagens-npc-${npc.id}`} className="label mb-2 text-ink-3">
               Foto e capa
             </h3>
-            <ImageRow actorId={npc.actorId ?? ""} />
+            <ImageRow
+              actorId={npc.actorId ?? ""}
+              avatarUrl={npc.avatar_url}
+              bannerUrl={npc.banner_url}
+              avatarX={npc.avatar_position_x}
+              avatarY={npc.avatar_position_y}
+              bannerY={npc.banner_position_y}
+            />
           </section>
         </div>
       </details>
@@ -244,7 +261,14 @@ export function OrganizationRow({ org }: { org: OrgDraft }) {
             <h3 id={`imagens-org-${org.id}`} className="label mb-2 text-ink-3">
               Foto e capa
             </h3>
-            <ImageRow actorId={org.actorId ?? ""} />
+            <ImageRow
+              actorId={org.actorId ?? ""}
+              avatarUrl={org.avatar_url}
+              bannerUrl={org.banner_url}
+              avatarX={org.avatar_position_x}
+              avatarY={org.avatar_position_y}
+              bannerY={org.banner_position_y}
+            />
           </section>
         </div>
       </details>

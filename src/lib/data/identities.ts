@@ -5,7 +5,7 @@ import type { ActorSummary } from "@/lib/types";
 export type DataClient = SupabaseClient<Database>;
 
 const ACTOR_FIELDS =
-  "id, display_name, username, avatar_url, banner_url, entity_type, character:characters(id, is_npc), organization:organizations(id, type)";
+  "id, display_name, username, avatar_url, banner_url, avatar_position_x, avatar_position_y, banner_position_y, entity_type, character:characters(id, is_npc), organization:organizations(id, type)";
 
 /**
  * Identidades disponíveis para a pessoa.
@@ -62,6 +62,9 @@ export function toActorCard(row: {
   username: string;
   avatar_url: string | null;
   banner_url: string | null;
+  avatar_position_x: number;
+  avatar_position_y: number;
+  banner_position_y: number;
   entity_type: "character" | "organization";
   character?: { id?: string; is_npc: boolean } | { id?: string; is_npc: boolean }[] | null;
   organization?: { id?: string; type: OrganizationType } | { id?: string; type: OrganizationType }[] | null;
@@ -75,6 +78,9 @@ export function toActorCard(row: {
     username: row.username,
     avatar_url: row.avatar_url,
     banner_url: row.banner_url,
+    avatar_position_x: row.avatar_position_x,
+    avatar_position_y: row.avatar_position_y,
+    banner_position_y: row.banner_position_y,
     entity_type: row.entity_type,
     is_npc: character?.is_npc ?? null,
     organization_type: organization?.type ?? null,

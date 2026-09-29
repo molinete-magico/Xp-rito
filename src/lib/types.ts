@@ -28,6 +28,11 @@ export interface ActorSummary {
   username: string;
   avatar_url: string | null;
   banner_url: string | null;
+  /** Foco da foto, em % do `object-position` (50/50 = centro). */
+  avatar_position_x: number;
+  avatar_position_y: number;
+  /** Foco vertical da capa, em % do `object-position` (50 = centro). */
+  banner_position_y: number;
   entity_type: "character" | "organization";
   /** Preenchido quando o actor é um personagem. */
   is_npc: boolean | null;

@@ -6,7 +6,7 @@ import type { OrganizationType } from "@/types/database";
 /** Perfis, contadores e o que o leitor pode fazer ali. */
 
 const ACTOR_FIELDS =
-  "id, display_name, username, avatar_url, banner_url, entity_type, character:characters(id, is_npc, bio, banner_url), organization:organizations(id, type, description, banner_url)";
+  "id, display_name, username, avatar_url, banner_url, avatar_position_x, avatar_position_y, banner_position_y, entity_type, character:characters(id, is_npc, bio, banner_url), organization:organizations(id, type, description, banner_url)";
 
 export async function loadActorByUsername(
   client: DataClient,

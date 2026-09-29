@@ -44,6 +44,9 @@ export type CharacterRow = {
   bio: string | null;
   avatar_url: string | null;
   banner_url: string | null;
+  avatar_position_x: number;
+  avatar_position_y: number;
+  banner_position_y: number;
   is_npc: boolean;
   created_at: string;
   updated_at: string;
@@ -56,6 +59,9 @@ export type OrganizationRow = {
   description: string | null;
   avatar_url: string | null;
   banner_url: string | null;
+  avatar_position_x: number;
+  avatar_position_y: number;
+  banner_position_y: number;
   type: OrganizationType;
   created_at: string;
   updated_at: string;
@@ -70,6 +76,9 @@ export type ActorRow = {
   bio: string | null;
   avatar_url: string | null;
   banner_url: string | null;
+  avatar_position_x: number;
+  avatar_position_y: number;
+  banner_position_y: number;
   entity_type: "character" | "organization";
   created_at: string;
   updated_at: string;
@@ -164,8 +173,8 @@ export type Database = {
       >;
       characters: Table<
         CharacterRow,
-        { owner_id?: string | null; name: string; username: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null; is_npc?: boolean },
-        { owner_id?: string | null; name?: string; username?: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null; is_npc?: boolean },
+        { owner_id?: string | null; name: string; username: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null; avatar_position_x?: number; avatar_position_y?: number; banner_position_y?: number; is_npc?: boolean },
+        { owner_id?: string | null; name?: string; username?: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null; avatar_position_x?: number; avatar_position_y?: number; banner_position_y?: number; is_npc?: boolean },
         [
           {
             foreignKeyName: "characters_owner_id_fkey";
@@ -178,13 +187,13 @@ export type Database = {
       >;
       organizations: Table<
         OrganizationRow,
-        { name: string; username: string; description?: string | null; avatar_url?: string | null; banner_url?: string | null; type?: OrganizationType },
-        { name?: string; username?: string; description?: string | null; avatar_url?: string | null; banner_url?: string | null; type?: OrganizationType }
+        { name: string; username: string; description?: string | null; avatar_url?: string | null; banner_url?: string | null; avatar_position_x?: number; avatar_position_y?: number; banner_position_y?: number; type?: OrganizationType },
+        { name?: string; username?: string; description?: string | null; avatar_url?: string | null; banner_url?: string | null; avatar_position_x?: number; avatar_position_y?: number; banner_position_y?: number; type?: OrganizationType }
       >;
       actors: Table<
         ActorRow,
-        { character_id?: string | null; organization_id?: string | null; display_name: string; username: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null },
-        { display_name?: string; username?: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null },
+        { character_id?: string | null; organization_id?: string | null; display_name: string; username: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null; avatar_position_x?: number; avatar_position_y?: number; banner_position_y?: number },
+        { display_name?: string; username?: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null; avatar_position_x?: number; avatar_position_y?: number; banner_position_y?: number },
         [
           {
             foreignKeyName: "actors_character_id_fkey";

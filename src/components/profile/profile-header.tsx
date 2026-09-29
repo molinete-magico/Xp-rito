@@ -32,7 +32,8 @@ export function ProfileHeader({
             alt=""
             fill
             sizes="(min-width: 1024px) 640px, 100vw"
-            className="object-cover object-right-top opacity-90"
+            className="object-cover opacity-90"
+            style={{ objectPosition: `50% ${profile.banner_position_y}%` }}
           />
         ) : null}
         <span
@@ -51,6 +52,7 @@ export function ProfileHeader({
             src={profile.avatar_url}
             size="xl"
             className="border-2 border-surface"
+            objectPosition={`${profile.avatar_position_x}% ${profile.avatar_position_y}%`}
           />
 
           <div className="flex items-center gap-2 pb-1">
