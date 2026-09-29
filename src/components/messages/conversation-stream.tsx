@@ -47,6 +47,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [newMessageCount, setNewMessageCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const scrollAdjustment = useRef<{ height: number; top: number } | null>(null);
   const clearCancelRef = useRef<HTMLButtonElement>(null);
@@ -144,11 +145,26 @@ export function ConversationStream({ conversationId }: { conversationId: string 
 
   useLayoutEffect(() => {
     const adjustment = scrollAdjustment.current;
-    const scroller = bottomRef.current?.parentElement;
+    const scroller = scrollerRef.current;
     if (!adjustment || !scroller) return;
     scroller.scrollTop = adjustment.top + (scroller.scrollHeight - adjustment.height);
     scrollAdjustment.current = null;
   }, [conversation?.messages.length]);
+
+  useEffect(() => {
+    if (!clearConfirmOpen) return;
+    clearCancelRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setClearConfirmOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [clearConfirmOpen]);
 
   if (isLoading || !viewer) {
     return (
@@ -234,21 +250,6 @@ export function ConversationStream({ conversationId }: { conversationId: string 
     }
     await reload();
   }
-
-  useEffect(() => {
-    if (!clearConfirmOpen) return;
-    clearCancelRef.current?.focus();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setClearConfirmOpen(false);
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [clearConfirmOpen]);
 
   // A conversa decide quem pode falar nela: o personagem próprio e, para o
   // Mestre, os NPCs da mesa que já estão aqui. `speakers` é a lista que o
@@ -373,6 +374,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
       ) : null}
 
       <div
+        ref={scrollerRef}
         className="relative flex-1 overflow-y-auto"
         onScroll={(event) => {
           const element = event.currentTarget;
