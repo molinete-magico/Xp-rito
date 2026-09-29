@@ -24,7 +24,7 @@ export default async function ExplorePage({
   return (
     <>
       <div className="border-b border-line">
-        <div className="px-4 py-3">
+        <div className="interface-header__content">
           <h1 className="font-display text-lg text-ink">Explorar</h1>
           <p className="mt-1 text-xs text-ink-3">
             Descubra o que está acontecendo na mesa, incluindo publicações e respostas.
