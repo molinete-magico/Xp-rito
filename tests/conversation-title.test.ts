@@ -88,26 +88,26 @@ describe("título de conversa em grupo", () => {
 
 describe("subtítulo de conversa direta", () => {
   it("mostra só o @ do outro, para o Mestre não ver o próprio sem saber qual é", () => {
-    expect(subtitleOf({ kind: "direct" }, [henri, mad], gm)).toBe("@henri");
+    expect(subtitleOf({ kind: "direct" }, [henri, mad], gm)).toBe("Como Mad🖤 · @henri");
   });
 
   it("é o mesmo para o jogador: a DM do NPC não ganha marca de Mestre", () => {
-    expect(subtitleOf({ kind: "direct" }, [henri, mad], player)).toBe("@Madn3S5");
+    expect(subtitleOf({ kind: "direct" }, [henri, mad], player)).toBe("Como Henri Ferrier · @Madn3S5");
   });
 
   it("fica vazio quando só tem identidades próprias", () => {
-    expect(subtitleOf({ kind: "direct" }, [autumn], gm)).toBe("");
+    expect(subtitleOf({ kind: "direct" }, [autumn], gm)).toBe("Como 🌲Autumn🌲");
   });
 });
 
 describe("subtítulo de conversa em grupo", () => {
   it("conta quem participa", () => {
     expect(subtitleOf({ kind: "group" }, [henri, mad, autumn], gm)).toBe(
-      "Henri Ferrier, Mad🖤, 🌲Autumn🌲 · 3 participantes",
+      "Como 2 identidades suas · 3 participantes",
     );
   });
 
   it("acerta o singular", () => {
-    expect(subtitleOf({ kind: "group" }, [mad], gm)).toBe("Mad🖤 · 1 participante");
+    expect(subtitleOf({ kind: "group" }, [mad], gm)).toBe("Como Mad🖤 · 1 participante");
   });
 });

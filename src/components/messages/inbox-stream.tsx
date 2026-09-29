@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/components/shell/session-provider";
 import { useDmSignal } from "@/components/shell/dm-unread-provider";
 import { ConversationRow } from "@/components/messages/conversation-row";
@@ -23,11 +23,38 @@ export function InboxStream() {
   const signal = useDmSignal();
   const [conversations, setConversations] = useState<ConversationCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [masterFilter, setMasterFilter] = useState<"all" | "characters" | "npcs">("all");
+
+  const filteredConversations = useMemo(() => {
+    if (!viewer) return [];
+    const term = search.trim().toLocaleLowerCase();
+    const mine = new Set(viewer.identities.map((actor) => actor.id));
+
+    return (conversations ?? []).filter((conversation) => {
+      const voices = conversation.participants.filter((actor) => mine.has(actor.id));
+      const matchesFilter =
+        !viewer.isGm ||
+        masterFilter === "all" ||
+        (masterFilter === "npcs" && voices.some((actor) => actor.is_npc === true)) ||
+        (masterFilter === "characters" && voices.some((actor) => actor.entity_type === "character" && actor.is_npc !== true));
+
+      if (!matchesFilter) return false;
+      if (!term) return true;
+
+      return [
+        conversation.title,
+        conversation.preview ?? "",
+        ...conversation.participants.map((actor) => actor.display_name),
+        ...conversation.participants.map((actor) => actor.username),
+      ].some((value) => value.toLocaleLowerCase().includes(term));
+    });
+  }, [conversations, masterFilter, search, viewer]);
 
   const reload = useCallback(async () => {
     if (!client || !viewer) return;
     try {
-      const list = await loadInbox(client, viewer);
+      const list = await loadInbox(client, viewer, viewer.isGm ? 200 : 50);
       setError(null);
       setConversations(list);
     } catch (cause) {
@@ -39,7 +66,7 @@ export function InboxStream() {
     if (!client || !viewer) return;
     let cancelled = false;
 
-    void loadInbox(client, viewer)
+    void loadInbox(client, viewer, viewer.isGm ? 200 : 50)
       .then((list) => {
         if (cancelled) return;
         setError(null);
@@ -60,7 +87,7 @@ export function InboxStream() {
     if (signal === 0 || !client || !viewer) return;
     let cancelled = false;
 
-    void loadInbox(client, viewer)
+    void loadInbox(client, viewer, viewer.isGm ? 200 : 50)
       .then((list) => {
         if (!cancelled) setConversations(list);
       })
@@ -94,6 +121,8 @@ export function InboxStream() {
     );
   }
 
+
+
   if (conversations && conversations.length === 0) {
     // O botão de grupo fica no estado vazio: é a única forma de começar.
     return (
@@ -111,18 +140,78 @@ export function InboxStream() {
 
   return (
     <div>
-      <div className="flex justify-end gap-2 border-b border-line px-4 py-2">
-        <NewMessageButton />
-        <NewGroupButton iconOnly />
+      <div className="border-b border-line px-4 py-2">
+        <div className="flex justify-end gap-2">
+          <NewMessageButton />
+          <NewGroupButton iconOnly />
+        </div>
+
+        <label htmlFor="dm-search" className="sr-only">Buscar nas conversas</label>
+        <input
+          id="dm-search"
+          value={search}
+          onChange={(event) => setSearch(event.currentTarget.value)}
+          placeholder={viewer.isGm ? "Buscar conversa, jogador ou NPC" : "Buscar conversa"}
+          className="mt-2 w-full border border-line-2 bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-ink"
+        />
+
+        {viewer.isGm ? (
+          <div className="mt-2 flex gap-1 overflow-x-auto" aria-label="Filtrar conversas por identidade">
+            {([
+              ["all", "Todas"],
+              ["characters", "Meus personagens"],
+              ["npcs", "NPCs"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={masterFilter === value}
+                onClick={() => setMasterFilter(value)}
+                className={
+                  masterFilter === value
+                    ? "shrink-0 border border-ink bg-ink px-2.5 py-1 text-xs text-bg"
+                    : "shrink-0 border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-sunken"
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <ul>
-        {(conversations ?? []).map((conversation) => (
-          <li key={conversation.id}>
-            <ConversationRow conversation={conversation} viewer={viewer} />
-          </li>
-        ))}
-      </ul>
+      {filteredConversations.length === 0 ? (
+        <EmptyState
+          title={search.trim() || (viewer.isGm && masterFilter !== "all") ? "Nenhuma conversa encontrada" : "Nenhuma conversa ainda"}
+          action={
+            search.trim() || (viewer.isGm && masterFilter !== "all") ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setMasterFilter("all");
+                }}
+                className="text-sm text-ink-2 underline"
+              >
+                Limpar filtros
+              </button>
+            ) : (
+              <div className="flex flex-wrap justify-center gap-2">
+                <NewMessageButton />
+                <NewGroupButton />
+              </div>
+            )
+          }
+        />
+      ) : (
+        <ul>
+          {filteredConversations.map((conversation) => (
+            <li key={conversation.id}>
+              <ConversationRow conversation={conversation} viewer={viewer} />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

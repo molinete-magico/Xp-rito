@@ -7,6 +7,7 @@ import { idleState } from "@/lib/validation/schemas";
 import { buttonClass } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Select } from "@/components/ui/field";
+import { accountTypeLabels, accountTypeOf } from "@/lib/site";
 import type { ActorSummary } from "@/lib/types";
 
 const MAX = 4000;
@@ -112,6 +113,7 @@ export function MessageComposer({
             <label htmlFor={`sender-${conversationId}`} className="sr-only">
               Enviar como
             </label>
+            <span className="hidden text-[11px] text-ink-3 sm:inline">Como</span>
             <Select
               id={`sender-${conversationId}`}
               name="senderEscolhido"

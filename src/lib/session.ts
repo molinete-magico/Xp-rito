@@ -2,7 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { loadIdentities } from "@/lib/data/identities";
+import { loadIdentities, preferredActiveActorId } from "@/lib/data/identities";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { ActorSummary, ProfileRow } from "@/lib/types";
 
@@ -54,7 +54,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   const requested = cookieStore.get(ACTIVE_ACTOR_COOKIE)?.value ?? null;
   const activeActorId = identities.some((actor) => actor.id === requested)
     ? requested
-    : (identities[0]?.id ?? null);
+    : (preferredActiveActorId(identities));
 
   return {
     userId: user.id,

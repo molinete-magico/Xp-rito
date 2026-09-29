@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { buildClientViewer, type BrowserClient } from "@/lib/session-client";
 import { writeActiveActor } from "@/lib/storage";
 import { getActiveActorAction, setActiveActorAction } from "@/app/actions/auth";
+import { preferredActiveActorId } from "@/lib/data/identities";
 import type { Viewer } from "@/lib/session";
 
 /**
@@ -46,7 +47,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const activeActorId =
       serverActiveActorId && next.identities.some((actor) => actor.id === serverActiveActorId)
         ? serverActiveActorId
-        : (next.identities[0]?.id ?? null);
+        : preferredActiveActorId(next.identities);
 
     if (activeActorId) writeActiveActor(activeActorId);
     setViewer({ ...next, activeActorId });
@@ -71,14 +72,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const activeActorId =
         serverActiveActorId && next.identities.some((actor) => actor.id === serverActiveActorId)
           ? serverActiveActorId
-          : (next.identities[0]?.id ?? null);
+          : preferredActiveActorId(next.identities);
 
       if (activeActorId) writeActiveActor(activeActorId);
       setViewer({ ...next, activeActorId });
       setIsLoading(false);
     }
 
-    if (client) void start(client);
+    void start(client);
 
     const {
       data: { subscription },

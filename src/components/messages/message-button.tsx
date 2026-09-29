@@ -8,6 +8,7 @@ import { buttonClass } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { useSession } from "@/components/shell/session-provider";
 import { dmSenderChoice, dmVoiceIdentities } from "@/lib/data/identities";
+import { accountTypeLabels, accountTypeOf } from "@/lib/site";
 
 /**
  * Mensagem para um perfil.
@@ -60,7 +61,7 @@ export function MessageButton({ targetActorId }: { targetActorId: string }) {
             >
               {voices.map((voice) => (
                 <option key={voice.id} value={voice.id}>
-                  {voice.display_name}
+                  {voice.display_name} · {accountTypeLabels[accountTypeOf(voice)]}
                 </option>
               ))}
             </Select>

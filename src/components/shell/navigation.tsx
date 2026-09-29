@@ -8,9 +8,9 @@ import { useUnread } from "@/components/shell/unread-provider";
 import { useDmUnread } from "@/components/shell/dm-unread-provider";
 import { site } from "@/lib/site";
 import { cn } from "@/lib/cn";
+import { preferredActiveActorId } from "@/lib/data/identities";
 import type { ActorSummary } from "@/lib/types";
 
-/** Coluna 1 do desktop: marca, navegação e menu da conta. */
 export function SideNav({
   identities,
   activeActorId,
@@ -22,7 +22,10 @@ export function SideNav({
 }) {
   const unread = useUnread();
   const dmUnread = useDmUnread();
-  const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
+  const active =
+    identities.find((actor) => actor.id === activeActorId)
+    ?? identities.find((actor) => actor.id === preferredActiveActorId(identities))
+    ?? null;
   const profileHref = active ? `/profile/${active.username}` : "#";
 
   return (
@@ -36,13 +39,7 @@ export function SideNav({
         <NavItem href="/explore" label="Explorar" icon={<Compass />} />
         <NavItem href="/search" label="Buscar" icon={<Search />} />
         <NavItem href="/notifications" label="Notificações" icon={<Bell />} badge={unread} />
-        <NavItem
-          href="/messages"
-          label="Mensagens"
-          icon={<Mail />}
-          badge={dmUnread}
-          badgeLabel="mensagens não lidas"
-        />
+        <NavItem href="/messages" label="Mensagens" icon={<Mail />} badge={dmUnread} badgeLabel="mensagens não lidas" />
         <NavItem href={profileHref} label="Perfil" icon={<User />} />
         <NavItem href="/settings" label="Configurações" icon={<Settings />} />
       </nav>
@@ -56,7 +53,6 @@ export function SideNav({
   );
 }
 
-/** Barra inferior do celular. */
 export function BottomNav({
   identities,
   activeActorId,
@@ -66,28 +62,18 @@ export function BottomNav({
 }) {
   const unread = useUnread();
   const dmUnread = useDmUnread();
-  const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
+  const active =
+    identities.find((actor) => actor.id === activeActorId)
+    ?? identities.find((actor) => actor.id === preferredActiveActorId(identities))
+    ?? null;
 
   return (
-    <nav
-      aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface lg:hidden"
-    >
+    <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface lg:hidden">
       <BottomItem href="/home" label="Início" icon={<Home />} exact />
       <BottomItem href="/explore" label="Explorar" icon={<Compass />} />
-      <BottomItem
-        href="/messages"
-        label="Mensagens"
-        icon={<Mail />}
-        badge={dmUnread}
-        badgeLabel="mensagens não lidas"
-      />
+      <BottomItem href="/messages" label="Mensagens" icon={<Mail />} badge={dmUnread} badgeLabel="mensagens não lidas" />
       <BottomItem href="/notifications" label="Notificações" icon={<Bell />} badge={unread} />
-      <BottomItem
-        href={active ? `/profile/${active.username}` : "/settings"}
-        label="Perfil"
-        icon={<User />}
-      />
+      <BottomItem href={active ? `/profile/${active.username}` : "/settings"} label="Perfil" icon={<User />} />
     </nav>
   );
 }
@@ -111,24 +97,14 @@ function BottomItem({
   const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors",
-        active ? "text-ink" : "text-ink-3",
-      )}
-    >
-      <span aria-hidden="true" className="[&>svg]:h-5 [&>svg]:w-5">
-        {icon}
-      </span>
+    <Link href={href} aria-current={active ? "page" : undefined} className={cn(
+      "relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors",
+      active ? "text-ink" : "text-ink-3",
+    )}>
+      <span aria-hidden="true" className="[&>svg]:h-5 [&>svg]:w-5">{icon}</span>
       {label}
       {active ? <span aria-hidden="true" className="absolute top-0 h-0.5 w-8 bg-accent" /> : null}
-      {badge ? (
-        <span className="absolute top-1.5 right-[20%]">
-          <UnreadBadge value={badge} label={badgeLabel} />
-        </span>
-      ) : null}
+      {badge ? <span className="absolute top-1.5 right-[20%]"><UnreadBadge value={badge} label={badgeLabel} /></span> : null}
     </Link>
   );
 }

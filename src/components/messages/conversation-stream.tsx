@@ -425,13 +425,13 @@ export function ConversationStream({ conversationId }: { conversationId: string 
         <ul className="space-y-3 px-4 py-2">
           {conversation.messages.map((message) => (
             <li key={message.id} className={cn(message.mine && "flex justify-end")}>
-              <MessageBubble message={message} onRetry={retryInflight} retrying={retryingId === message.id} />
+              <MessageBubble message={message} isGm={viewer.isGm} onRetry={retryInflight} retrying={retryingId === message.id} />
             </li>
           ))}
 
           {inflight.map((message) => (
             <li key={message.id} className="flex justify-end">
-              <MessageBubble message={message} />
+              <MessageBubble message={message} isGm={viewer.isGm} />
             </li>
           ))}
         </ul>
@@ -499,10 +499,12 @@ export function ConversationStream({ conversationId }: { conversationId: string 
 
 function MessageBubble({
   message,
+  isGm,
   onRetry,
   retrying = false,
 }: {
   message: MessageView;
+  isGm: boolean;
   onRetry?: (message: MessageView) => void;
   retrying?: boolean;
 }) {
@@ -519,7 +521,10 @@ function MessageBubble({
       />
       <div className={cn("min-w-0", message.mine && "items-end text-right")}>
         <p className="text-xs text-ink-3">
-          <span className="text-ink-2">{message.author.display_name}</span>{" "}
+          <span className="text-ink-2">{message.author.display_name}</span>
+          {isGm && message.author.entity_type === "character" && message.author.is_npc === true ? (
+            <span className="ml-1 label text-ink-3">NPC</span>
+          ) : null}{" "}
           <time dateTime={message.created_at} title={fullTimestamp(message.created_at)}>
             {relativeTime(message.created_at)}
           </time>
