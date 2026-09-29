@@ -128,6 +128,7 @@ export function PostCard({
             stats={post.stats}
             viewer={post.viewer}
             username={post.author.username}
+            content={post.content}
           />
         </div>
       </div>
