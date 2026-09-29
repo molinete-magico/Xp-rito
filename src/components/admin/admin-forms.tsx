@@ -115,7 +115,9 @@ export function NpcRow({
   players: PlayerSelectItem[];
 }) {
   const [state, formAction, pending] = useActionState(updateNpcAction, idleState);
+  const [deleteState, deleteFormAction, deletePending] = useActionState(deleteNpcAction, idleState);
   useRefreshSessionOnSuccess(state);
+  useRefreshSessionOnSuccess(deleteState);
 
   return (
     <li className="border-b border-line px-3 py-2 last:border-b-0">
@@ -154,15 +156,17 @@ export function NpcRow({
         </div>
       </details>
 
-      <form action={deleteNpcAction} className="mt-2">
+      <form action={deleteFormAction} className="mt-2">
         <input type="hidden" name="characterId" value={npc.id} />
         <ConfirmSubmitButton
-          label="Apagar"
+          label={deletePending ? "Apagando…" : "Apagar"}
           confirmLabel="Confirmar apagamento"
           message={`Apagar ${npc.name} e tudo que publicou?`}
           icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />}
           variant="danger"
+          disabled={deletePending}
         />
+        <Feedback state={deleteState} />
       </form>
 
       <NpcOwnerForm npc={npc} players={players} />
@@ -306,7 +310,9 @@ export function OrganizationCreateForm() {
 
 export function OrganizationRow({ org }: { org: OrgDraft }) {
   const [state, formAction, pending] = useActionState(updateOrganizationAction, idleState);
+  const [deleteState, deleteFormAction, deletePending] = useActionState(deleteOrganizationAction, idleState);
   useRefreshSessionOnSuccess(state);
+  useRefreshSessionOnSuccess(deleteState);
 
   return (
     <li className="border-b border-line px-3 py-2 last:border-b-0">
@@ -348,15 +354,17 @@ export function OrganizationRow({ org }: { org: OrgDraft }) {
         </div>
       </details>
 
-      <form action={deleteOrganizationAction} className="mt-2">
+      <form action={deleteFormAction} className="mt-2">
         <input type="hidden" name="organizationId" value={org.id} />
         <ConfirmSubmitButton
-          label="Apagar"
+          label={deletePending ? "Apagando…" : "Apagar"}
           confirmLabel="Confirmar apagamento"
           message={`Apagar ${org.name} e tudo que publicou?`}
           icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />}
           variant="danger"
+          disabled={deletePending}
         />
+        <Feedback state={deleteState} />
       </form>
     </li>
   );
