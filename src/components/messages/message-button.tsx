@@ -61,7 +61,7 @@ export function MessageButton({ targetActorId }: { targetActorId: string }) {
             >
               {voices.map((voice) => (
                 <option key={voice.id} value={voice.id}>
-                  {voice.display_name}
+                  {voice.display_name} · {accountTypeLabels[accountTypeOf(voice)]}
                 </option>
               ))}
             </Select>
