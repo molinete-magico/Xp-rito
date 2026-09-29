@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, MoreHorizontal, Trash2 } from "lucide-react";
@@ -15,6 +15,7 @@ import {
   markConversationReadAction,
 } from "@/app/actions/messages";
 import { formatMessageCursor, loadConversation, MESSAGE_PAGE_SIZE } from "@/lib/data/messages";
+import { sendMessageAction } from "@/app/actions/messages";
 import { fullTimestamp, relativeTime } from "@/lib/format/datetime";
 import { dmSpeakerCandidates } from "@/lib/data/identities";
 import { cn } from "@/lib/cn";
@@ -42,6 +43,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const scrollAdjustment = useRef<{ height: number; top: number } | null>(null);
@@ -242,7 +244,43 @@ export function ConversationStream({ conversationId }: { conversationId: string 
       void reload();
       return;
     }
-    setInflight((current) => current.filter((message) => message.id !== optimisticId));
+    setInflight((current) =>
+      current.map((message) =>
+        message.id === optimisticId
+          ? { ...message, status: "failed", error: "Não foi possível enviar esta mensagem." }
+          : message,
+      ),
+    );
+  }
+
+  function retryInflight(message: MessageView) {
+    if (retryingId === message.id) return;
+    setRetryingId(message.id);
+    setInflight((current) =>
+      current.map((item) => item.id === message.id ? { ...item, status: "pending", error: undefined } : item),
+    );
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("conversationId", conversationId);
+      formData.set("senderActorId", message.author.id);
+      formData.set("content", message.content);
+
+      const result = await sendMessageAction(null, formData);
+      if (result.ok) {
+        setInflight((current) => current.filter((item) => item.id !== message.id));
+        void reload();
+      } else {
+        setInflight((current) =>
+          current.map((item) =>
+            item.id === message.id
+              ? { ...item, status: "failed", error: result.message ?? "Não foi possível enviar esta mensagem." }
+              : item,
+          ),
+        );
+      }
+      setRetryingId(null);
+    });
   }
 
   return (
@@ -325,7 +363,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
         <ul className="space-y-3 px-4 py-2">
           {conversation.messages.map((message) => (
             <li key={message.id} className={cn(message.mine && "flex justify-end")}>
-              <MessageBubble message={message} />
+              <MessageBubble message={message} onRetry={retryInflight} />
             </li>
           ))}
 
@@ -351,7 +389,13 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   );
 }
 
-function MessageBubble({ message }: { message: MessageView }) {
+function MessageBubble({
+  message,
+  onRetry,
+}: {
+  message: MessageView;
+  onRetry?: (message: MessageView) => void;
+}) {
   return (
     <div className={cn("flex max-w-[85%] items-end gap-2", message.mine && "flex-row-reverse")}>
       <Avatar
@@ -378,6 +422,23 @@ function MessageBubble({ message }: { message: MessageView }) {
         >
           {message.content}
         </p>
+        {message.status === "pending" ? (
+          <p className="mt-1 text-[11px] text-ink-3">Enviando…</p>
+        ) : message.status === "failed" ? (
+          <div className="mt-1 flex items-center justify-end gap-2 text-[11px] text-danger">
+            <span>{message.error ?? "Falha ao enviar"}</span>
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={() => onRetry(message)}
+                disabled={retryingId === message.id}
+                className="underline underline-offset-2 disabled:opacity-50"
+              >
+                {retryingId === message.id ? "Tentando…" : "Tentar novamente"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -402,5 +463,6 @@ function optimisticMessage(
     created_at: new Date().toISOString(),
     author,
     mine,
+    status: "pending",
   };
 }
