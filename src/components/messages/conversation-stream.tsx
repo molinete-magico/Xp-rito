@@ -16,6 +16,7 @@ import {
 } from "@/app/actions/messages";
 import { formatMessageCursor, loadConversation, MESSAGE_PAGE_SIZE } from "@/lib/data/messages";
 import { sendMessageAction } from "@/app/actions/messages";
+import { idleState } from "@/lib/validation/schemas";
 import { fullTimestamp, relativeTime } from "@/lib/format/datetime";
 import { dmSpeakerCandidates } from "@/lib/data/identities";
 import { cn } from "@/lib/cn";
@@ -266,7 +267,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
       formData.set("senderActorId", message.author.id);
       formData.set("content", message.content);
 
-      const result = await sendMessageAction(null, formData);
+      const result = await sendMessageAction(idleState, formData);
       if (result.ok) {
         setInflight((current) => current.filter((item) => item.id !== message.id));
         void reload();
@@ -363,7 +364,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
         <ul className="space-y-3 px-4 py-2">
           {conversation.messages.map((message) => (
             <li key={message.id} className={cn(message.mine && "flex justify-end")}>
-              <MessageBubble message={message} onRetry={retryInflight} />
+              <MessageBubble message={message} onRetry={retryInflight} retrying={retryingId === message.id} />
             </li>
           ))}
 
@@ -392,9 +393,11 @@ export function ConversationStream({ conversationId }: { conversationId: string 
 function MessageBubble({
   message,
   onRetry,
+  retrying = false,
 }: {
   message: MessageView;
   onRetry?: (message: MessageView) => void;
+  retrying?: boolean;
 }) {
   return (
     <div className={cn("flex max-w-[85%] items-end gap-2", message.mine && "flex-row-reverse")}>
@@ -422,7 +425,9 @@ function MessageBubble({
         >
           {message.content}
         </p>
-        {message.status === "pending" ? (
+        {message.status === "pending" && retrying ? (
+          <p className="mt-1 text-[11px] text-ink-3">Tentando novamente…</p>
+        ) : message.status === "pending" ? (
           <p className="mt-1 text-[11px] text-ink-3">Enviando…</p>
         ) : message.status === "failed" ? (
           <div className="mt-1 flex items-center justify-end gap-2 text-[11px] text-danger">
@@ -431,10 +436,10 @@ function MessageBubble({
               <button
                 type="button"
                 onClick={() => onRetry(message)}
-                disabled={retryingId === message.id}
+                disabled={retrying}
                 className="underline underline-offset-2 disabled:opacity-50"
               >
-                {retryingId === message.id ? "Tentando…" : "Tentar novamente"}
+                {retrying ? "Tentando…" : "Tentar novamente"}
               </button>
             ) : null}
           </div>
