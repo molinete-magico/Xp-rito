@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { Plus, Save, Trash2, UserCog, UserPlus } from "lucide-react";
 import {
   createNpcAction,
@@ -17,6 +17,7 @@ import { buttonClass } from "@/components/ui/button";
 import { ImageRow } from "@/components/settings/image-form";
 import { idleState, type ActionState } from "@/lib/validation/schemas";
 import { organizationTypeLabels } from "@/lib/site";
+import { useSession } from "@/components/shell/session-provider";
 
 /**
  * Formulários do painel.
@@ -67,6 +68,7 @@ export type PlayerSelectItem = {
 
 export function NpcCreateForm() {
   const [state, formAction, pending] = useActionState(createNpcAction, idleState);
+  useRefreshSessionOnSuccess(state);
 
   return (
     <form action={formAction} className="space-y-4 border border-line p-3">
@@ -113,6 +115,7 @@ export function NpcRow({
   players: PlayerSelectItem[];
 }) {
   const [state, formAction, pending] = useActionState(updateNpcAction, idleState);
+  useRefreshSessionOnSuccess(state);
 
   return (
     <li className="border-b border-line px-3 py-2 last:border-b-0">
@@ -195,6 +198,7 @@ export function PlayerCharacterList({ characters }: { characters: PlayerCharacte
 
 export function PlayerCharacterRow({ character }: { character: PlayerCharacterDraft }) {
   const [state, formAction, pending] = useActionState(takePlayerCharacterAction, idleState);
+  useRefreshSessionOnSuccess(state);
 
   return (
     <li className="border-b border-line px-3 py-2 last:border-b-0">
@@ -229,6 +233,7 @@ function NpcOwnerForm({
   players: PlayerSelectItem[];
 }) {
   const [state, formAction, pending] = useActionState(grantNpcAction, idleState);
+  useRefreshSessionOnSuccess(state);
 
   if (players.length === 0) return null;
 
@@ -284,6 +289,7 @@ export function OrganizationList({ organizations }: { organizations: OrgDraft[] 
 
 export function OrganizationCreateForm() {
   const [state, formAction, pending] = useActionState(createOrganizationAction, idleState);
+  useRefreshSessionOnSuccess(state);
 
   return (
     <form action={formAction} className="space-y-4 border border-line p-3">
@@ -300,6 +306,7 @@ export function OrganizationCreateForm() {
 
 export function OrganizationRow({ org }: { org: OrgDraft }) {
   const [state, formAction, pending] = useActionState(updateOrganizationAction, idleState);
+  useRefreshSessionOnSuccess(state);
 
   return (
     <li className="border-b border-line px-3 py-2 last:border-b-0">
@@ -473,6 +480,14 @@ function OrganizationFields({
       </Field>
     </>
   );
+}
+
+function useRefreshSessionOnSuccess(state: ActionState) {
+  const { refresh } = useSession();
+
+  useEffect(() => {
+    if (state.ok) void refresh();
+  }, [refresh, state.ok]);
 }
 
 function Feedback({ state }: { state: ActionState }) {
