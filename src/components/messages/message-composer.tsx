@@ -77,8 +77,10 @@ export function MessageComposer({
       className="border-t border-line bg-surface px-4 py-3"
       onSubmit={(event) => {
         const content = textareaRef.current?.value.trim();
-        // Vazio não vai ao banco: a mensagem otimista mostraria e voltaria.
-        if (!content || !chosen) {
+        // Uma submissão já tem uma mensagem otimista associada. Não enfileiramos
+        // outra, porque este componente mantém uma relação 1:1 entre envio e id
+        // otimista; isso também evita duas mensagens idênticas por Enter repetido.
+        if (pending || inFlight.current || !content || !chosen) {
           event.preventDefault();
           return;
         }
