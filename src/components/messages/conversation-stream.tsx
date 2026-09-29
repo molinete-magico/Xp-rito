@@ -20,6 +20,7 @@ import { idleState } from "@/lib/validation/schemas";
 import { fullTimestamp, relativeTime } from "@/lib/format/datetime";
 import { dmSpeakerCandidates } from "@/lib/data/identities";
 import { cn } from "@/lib/cn";
+import { Menu, MenuItem } from "@/components/ui/menu";
 import type { ActorSummary, ConversationView, MessageView } from "@/lib/types";
 
 /**
@@ -42,12 +43,13 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   const [loadingMore, setLoadingMore] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const scrollAdjustment = useRef<{ height: number; top: number } | null>(null);
+  const clearCancelRef = useRef<HTMLButtonElement>(null);
 
   const reload = useCallback(async () => {
     if (!client || !viewer) return;
@@ -197,7 +199,6 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   }
 
   async function hide() {
-    setMenuOpen(false);
     const result = await hideConversationAction(conversationId);
     if (result.error) {
       setActionError(result.error);
@@ -209,12 +210,6 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   }
 
   async function clear() {
-    setMenuOpen(false);
-    const ok = window.confirm(
-      "Apagar todas as mensagens desta conversa? Isso vale para todos que participam.",
-    );
-    if (!ok) return;
-
     const result = await clearConversationAction(conversationId);
     if (result.error) {
       setActionError(result.error);
@@ -222,6 +217,11 @@ export function ConversationStream({ conversationId }: { conversationId: string 
     }
     await reload();
   }
+
+  useEffect(() => {
+    if (!clearConfirmOpen) return;
+    clearCancelRef.current?.focus();
+  }, [clearConfirmOpen]);
 
   // A conversa decide quem pode falar nela: o personagem próprio e, para o
   // Mestre, os NPCs da mesa que já estão aqui. `speakers` é a lista que o
@@ -300,37 +300,43 @@ export function ConversationStream({ conversationId }: { conversationId: string 
           <p className="truncate text-xs text-ink-3">{conversation.subtitle}</p>
         </div>
 
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            className="text-ink-3 hover:text-ink"
-            aria-label="Opções da conversa"
-            aria-expanded={menuOpen}
-          >
-            <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
-          </button>
-
-          {menuOpen ? (
-            <div className="absolute right-0 z-20 mt-1 w-56 border border-line bg-surface">
-              <button
-                type="button"
-                onClick={hide}
-                className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-sunken"
+        <Menu
+          label="Opções da conversa"
+          align="end"
+          trigger={(props) => (
+            <button
+              {...props}
+              type="button"
+              aria-label="Opções da conversa"
+              className="rounded-xs p-1.5 text-ink-3 hover:bg-sunken hover:text-ink"
+            >
+              <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
+            </button>
+          )}
+        >
+          {(close) => (
+            <>
+              <MenuItem
+                onSelect={() => {
+                  close();
+                  void hide();
+                }}
               >
                 Some da minha caixa
-              </button>
-              <button
-                type="button"
-                onClick={clear}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft"
+              </MenuItem>
+              <MenuItem
+                destructive
+                onSelect={() => {
+                  close();
+                  setClearConfirmOpen(true);
+                }}
               >
                 <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
                 Apagar para todos
-              </button>
-            </div>
-          ) : null}
-        </div>
+              </MenuItem>
+            </>
+          )}
+        </Menu>
       </header>
 
       {actionError ? (
@@ -386,6 +392,52 @@ export function ConversationStream({ conversationId }: { conversationId: string 
         onPending={addInflight}
         onSettled={settleInflight}
       />
+
+      {clearConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-6"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setClearConfirmOpen(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-conversation-title"
+            aria-describedby="clear-conversation-description"
+            className="w-full max-w-md border border-line bg-surface p-5"
+          >
+            <h2 id="clear-conversation-title" className="font-display text-base text-ink">
+              Apagar conversa?
+            </h2>
+            <p id="clear-conversation-description" className="mt-2 text-sm leading-relaxed text-ink-2">
+              Todas as mensagens desta conversa serão apagadas para os participantes. Esta ação é irreversível.
+            </p>
+            {actionError ? <p role="alert" className="mt-2 text-xs text-danger">{actionError}</p> : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                ref={clearCancelRef}
+                type="button"
+                onClick={() => setClearConfirmOpen(false)}
+                className="px-3 py-2 text-sm text-ink-2 hover:bg-sunken"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setClearConfirmOpen(false);
+                  void clear();
+                }}
+                className="px-3 py-2 text-sm text-danger hover:bg-danger-soft"
+              >
+                Apagar para todos
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
