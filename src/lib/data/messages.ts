@@ -17,7 +17,7 @@ import { formatCursor, parseCursor } from "@/lib/data/posts";
  * Este módulo é client-safe: só o cliente e tipos.
  */
 
-const ACTOR_FIELDS =
+export const ACTOR_FIELDS =
   "id, display_name, username, avatar_url, banner_url, avatar_position_x, avatar_position_y, banner_position_y, entity_type, character:characters(id, is_npc), organization:organizations(id, type)";
 
 const MESSAGE_FIELDS = `id, content, created_at, actor_id, author:actors!dm_messages_actor_id_fkey(${ACTOR_FIELDS})`;
