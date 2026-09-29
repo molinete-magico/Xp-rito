@@ -108,21 +108,31 @@ export function FeedStream({
   }, [client, viewer, ready, scopeKey, loadFirst]);
 
   if (!ready) {
-    return <PostFeedSkeleton />;
+    return (
+      <div className="mx-auto w-full max-w-[820px]">
+        <PostFeedSkeleton />
+      </div>
+    );
   }
 
   if (page === null) {
-    return error ? <ErrorState /> : <PostFeedSkeleton />;
+    return (
+      <div className="mx-auto w-full max-w-[820px]">
+        {error ? <ErrorState /> : <PostFeedSkeleton />}
+      </div>
+    );
   }
 
   return (
-    <PostTimeline
-      posts={page.posts as PostCardData[]}
-      nextCursor={page.nextCursor}
-      hasMore={page.hasMore}
-      basePath={basePath}
-      onLoadMore={() => void loadMore()}
-      empty={<EmptyState title={emptyTitle} />}
-    />
+    <div className="mx-auto w-full max-w-[820px]">
+      <PostTimeline
+        posts={page.posts as PostCardData[]}
+        nextCursor={page.nextCursor}
+        hasMore={page.hasMore}
+        basePath={basePath}
+        onLoadMore={() => void loadMore()}
+        empty={<EmptyState title={emptyTitle} />}
+      />
+    </div>
   );
 }
