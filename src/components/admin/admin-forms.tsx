@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { Plus, Save, Trash2, UserCog, UserPlus } from "lucide-react";
 import {
   createNpcAction,
@@ -81,6 +81,30 @@ export function NpcCreateForm() {
   );
 }
 
+export function NpcList({ npcs, players }: { npcs: NpcDraft[]; players: PlayerSelectItem[] }) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase();
+    if (!term) return npcs;
+    return npcs.filter((npc) => `${npc.name} ${npc.username} ${npc.bio ?? ""}`.toLocaleLowerCase().includes(term));
+  }, [npcs, query]);
+
+  return (
+    <div>
+      <ListSearch value={query} onChange={setQuery} placeholder="Buscar NPC por nome ou @handle" />
+      <ul className="border border-line">
+        {filtered.length === 0 ? (
+          <li className="px-3 py-4 text-sm text-ink-2">
+            {npcs.length === 0 ? "Nenhum NPC ainda." : "Nenhum NPC corresponde à busca."}
+          </li>
+        ) : (
+          filtered.map((npc) => <NpcRow key={npc.id} npc={npc} players={players} />)
+        )}
+      </ul>
+    </div>
+  );
+}
+
 export function NpcRow({
   npc,
   players,
@@ -129,20 +153,43 @@ export function NpcRow({
 
       <form action={deleteNpcAction} className="mt-2">
         <input type="hidden" name="characterId" value={npc.id} />
-        <button
-          type="submit"
-          className={buttonClass("danger", "sm")}
-          onClick={(event) => {
-            if (!confirm(`Apagar ${npc.name} e tudo que publicou?`)) event.preventDefault();
-          }}
-        >
-          <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
-          Apagar
-        </button>
+        <ConfirmSubmitButton
+          label="Apagar"
+          confirmLabel="Confirmar apagamento"
+          message={`Apagar ${npc.name} e tudo que publicou?`}
+          icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />}
+          variant="danger"
+        />
       </form>
 
       <NpcOwnerForm npc={npc} players={players} />
     </li>
+  );
+}
+
+export function PlayerCharacterList({ characters }: { characters: PlayerCharacterDraft[] }) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase();
+    if (!term) return characters;
+    return characters.filter((character) =>
+      `${character.name} ${character.username} ${character.ownerName}`.toLocaleLowerCase().includes(term),
+    );
+  }, [characters, query]);
+
+  return (
+    <div>
+      <ListSearch value={query} onChange={setQuery} placeholder="Buscar personagem ou jogador" />
+      <ul className="border border-line">
+        {filtered.length === 0 ? (
+          <li className="px-3 py-4 text-sm text-ink-2">
+            {characters.length === 0 ? "Nenhum personagem de jogador ainda." : "Nenhum personagem corresponde à busca."}
+          </li>
+        ) : (
+          filtered.map((character) => <PlayerCharacterRow key={character.id} character={character} />)
+        )}
+      </ul>
+    </div>
   );
 }
 
@@ -159,19 +206,14 @@ export function PlayerCharacterRow({ character }: { character: PlayerCharacterDr
         <span className="truncate text-[11px] text-ink-3">de {character.ownerName}</span>
         <form action={formAction}>
           <input type="hidden" name="characterId" value={character.id} />
-          <button
-            type="submit"
-            className={buttonClass("outline", "sm")}
+          <ConfirmSubmitButton
+            label={pending ? "Assumindo…" : "Assumir (vira NPC)"}
+            confirmLabel="Confirmar"
+            message={`Assumir ${character.name}? Ele deixa de ser do(a) jogador(a) e vira NPC.`}
+            icon={<UserCog aria-hidden="true" className="h-3.5 w-3.5" />}
+            variant="outline"
             disabled={pending}
-            onClick={(event) => {
-              if (!confirm(`Assumir ${character.name}? Ele deixa de ser do(a) jogador(a) e vira NPC.`)) {
-                event.preventDefault();
-              }
-            }}
-          >
-            <UserCog aria-hidden="true" className="h-3.5 w-3.5" />
-            {pending ? "Assumindo…" : "Assumir (vira NPC)"}
-          </button>
+          />
         </form>
       </div>
       <Feedback state={state} />
@@ -211,6 +253,32 @@ function NpcOwnerForm({
       </button>
       <Feedback state={state} />
     </form>
+  );
+}
+
+export function OrganizationList({ organizations }: { organizations: OrgDraft[] }) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase();
+    if (!term) return organizations;
+    return organizations.filter((org) =>
+      `${org.name} ${org.username} ${org.type} ${org.description ?? ""}`.toLocaleLowerCase().includes(term),
+    );
+  }, [organizations, query]);
+
+  return (
+    <div>
+      <ListSearch value={query} onChange={setQuery} placeholder="Buscar organização por nome ou @handle" />
+      <ul className="border border-line">
+        {filtered.length === 0 ? (
+          <li className="px-3 py-4 text-sm text-ink-2">
+            {organizations.length === 0 ? "Nenhuma organização ainda." : "Nenhuma organização corresponde à busca."}
+          </li>
+        ) : (
+          filtered.map((org) => <OrganizationRow key={org.id} org={org} />)
+        )}
+      </ul>
+    </div>
   );
 }
 
@@ -275,16 +343,13 @@ export function OrganizationRow({ org }: { org: OrgDraft }) {
 
       <form action={deleteOrganizationAction} className="mt-2">
         <input type="hidden" name="organizationId" value={org.id} />
-        <button
-          type="submit"
-          className={buttonClass("danger", "sm")}
-          onClick={(event) => {
-            if (!confirm(`Apagar ${org.name} e tudo que publicou?`)) event.preventDefault();
-          }}
-        >
-          <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
-          Apagar
-        </button>
+        <ConfirmSubmitButton
+          label="Apagar"
+          confirmLabel="Confirmar apagamento"
+          message={`Apagar ${org.name} e tudo que publicou?`}
+          icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />}
+          variant="danger"
+        />
       </form>
     </li>
   );
@@ -420,5 +485,76 @@ function Feedback({ state }: { state: ActionState }) {
     <p role="alert" className="border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger-strong">
       {state.message}
     </p>
+  );
+}
+
+function ListSearch({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <label className="mb-2 block">
+      <span className="sr-only">{placeholder}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        placeholder={placeholder}
+        className="w-full border border-line-2 bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-ink"
+      />
+    </label>
+  );
+}
+
+function ConfirmSubmitButton({
+  label,
+  confirmLabel,
+  message,
+  icon,
+  variant,
+  disabled = false,
+}: {
+  label: string;
+  confirmLabel: string;
+  message: string;
+  icon: React.ReactNode;
+  variant: "danger" | "outline";
+  disabled?: boolean;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        className={buttonClass(variant, "sm")}
+        disabled={disabled}
+        onClick={() => setConfirming(true)}
+      >
+        {icon}
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <span className="text-xs text-danger">{message}</span>
+      <button type="submit" className={buttonClass("danger", "sm")} disabled={disabled}>
+        {confirmLabel}
+      </button>
+      <button
+        type="button"
+        className={buttonClass("quiet", "sm")}
+        onClick={() => setConfirming(false)}
+        disabled={disabled}
+      >
+        Cancelar
+      </button>
+    </span>
   );
 }
