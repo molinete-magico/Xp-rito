@@ -139,6 +139,33 @@ export type PostHashtagRow = {
   hashtag_id: number;
 }
 
+export type DmConversationRow = {
+  id: string;
+  kind: "direct" | "group";
+  title: string | null;
+  created_by: string;
+  created_at: string;
+  last_message_at: string;
+  direct_key: string | null;
+}
+
+export type DmParticipantRow = {
+  conversation_id: string;
+  actor_id: string;
+  joined_at: string;
+  last_read_at: string;
+  hidden: boolean;
+}
+
+export type DmMessageRow = {
+  id: string;
+  conversation_id: string;
+  actor_id: string;
+  content: string;
+  kind: "text" | "system";
+  created_at: string;
+}
+
 /**
  * Uma tabela do schema, com os relacionamentos que o PostgREST sabe resolver.
  *
@@ -345,6 +372,62 @@ export type Database = {
           },
         ]
       >;
+      dm_conversations: Table<
+        DmConversationRow,
+        { kind?: "direct" | "group"; title?: string | null; created_by: string; direct_key?: string | null },
+        { title?: string | null },
+        [
+          {
+            foreignKeyName: "dm_conversations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "actors";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
+      dm_messages: Table<
+        DmMessageRow,
+        { conversation_id: string; actor_id: string; content: string; kind?: "text" | "system" },
+        Record<never, never>,
+        [
+          {
+            foreignKeyName: "dm_messages_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "actors";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dm_messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "dm_conversations";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
+      dm_participants: Table<
+        DmParticipantRow,
+        { conversation_id: string; actor_id: string; hidden?: boolean },
+        { last_read_at?: string; hidden?: boolean },
+        [
+          {
+            foreignKeyName: "dm_participants_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "actors";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dm_participants_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "dm_conversations";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
     };
     Views: Record<never, never>;
     Functions: {
@@ -369,6 +452,33 @@ export type Database = {
         Returns: string;
       };
       count_unread_notifications: { Args: Record<never, never>; Returns: number };
+      my_dm_actor_ids: { Args: Record<never, never>; Returns: string[] };
+      owns_dm_actor: { Args: { target: string }; Returns: boolean };
+      is_dm_participant: { Args: { target: string }; Returns: boolean };
+      dm_start_direct: { Args: { sender_actor: string; target_actor: string }; Returns: string };
+      dm_create_group: {
+        Args: { sender_actor: string; group_title: string; members: string[] };
+        Returns: string;
+      };
+      dm_unread_counts: {
+        Args: Record<never, never>;
+        Returns: { conversation_id: string; unread: number }[];
+      };
+      dm_inbox: {
+        Args: { p_limit?: number };
+        Returns: {
+          id: string;
+          kind: string;
+          title: string | null;
+          last_message_at: string;
+          preview: string | null;
+          unread: number;
+          participants: Json;
+        }[];
+      };
+      dm_mark_read: { Args: { target: string }; Returns: void };
+      dm_hide: { Args: { target: string }; Returns: void };
+      dm_clear: { Args: { target: string }; Returns: void };
     };
     Enums: {
       organization_type: OrganizationType;

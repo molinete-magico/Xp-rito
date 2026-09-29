@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Compass, Home, Search, Settings, Shield, User } from "lucide-react";
+import { Bell, Compass, Home, Mail, Search, Settings, Shield, User } from "lucide-react";
 import { NavItem, UnreadBadge } from "@/components/shell/nav-item";
 import { useUnread } from "@/components/shell/unread-provider";
+import { useDmUnread } from "@/components/shell/dm-unread-provider";
 import { site } from "@/lib/site";
 import { cn } from "@/lib/cn";
 import type { ActorSummary } from "@/lib/types";
@@ -20,6 +21,7 @@ export function SideNav({
   isGm: boolean;
 }) {
   const unread = useUnread();
+  const dmUnread = useDmUnread();
   const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
   const profileHref = active ? `/profile/${active.username}` : "#";
 
@@ -34,6 +36,13 @@ export function SideNav({
         <NavItem href="/explore" label="Explorar" icon={<Compass />} />
         <NavItem href="/search" label="Buscar" icon={<Search />} />
         <NavItem href="/notifications" label="Notificações" icon={<Bell />} badge={unread} />
+        <NavItem
+          href="/messages"
+          label="Mensagens"
+          icon={<Mail />}
+          badge={dmUnread}
+          badgeLabel="mensagens não lidas"
+        />
         <NavItem href={profileHref} label="Perfil" icon={<User />} />
         <NavItem href="/settings" label="Configurações" icon={<Settings />} />
       </nav>
@@ -56,6 +65,7 @@ export function BottomNav({
   activeActorId: string | null;
 }) {
   const unread = useUnread();
+  const dmUnread = useDmUnread();
   const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
 
   return (
@@ -65,7 +75,13 @@ export function BottomNav({
     >
       <BottomItem href="/home" label="Início" icon={<Home />} exact />
       <BottomItem href="/explore" label="Explorar" icon={<Compass />} />
-      <BottomItem href="/search" label="Buscar" icon={<Search />} />
+      <BottomItem
+        href="/messages"
+        label="Mensagens"
+        icon={<Mail />}
+        badge={dmUnread}
+        badgeLabel="mensagens não lidas"
+      />
       <BottomItem href="/notifications" label="Notificações" icon={<Bell />} badge={unread} />
       <BottomItem
         href={active ? `/profile/${active.username}` : "/settings"}
@@ -82,12 +98,14 @@ function BottomItem({
   icon,
   exact = false,
   badge,
+  badgeLabel,
 }: {
   href: string;
   label: string;
   icon: React.ReactNode;
   exact?: boolean;
   badge?: number;
+  badgeLabel?: string;
 }) {
   const pathname = usePathname();
   const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -108,7 +126,7 @@ function BottomItem({
       {active ? <span aria-hidden="true" className="absolute top-0 h-0.5 w-8 bg-accent" /> : null}
       {badge ? (
         <span className="absolute top-1.5 right-[20%]">
-          <UnreadBadge value={badge} />
+          <UnreadBadge value={badge} label={badgeLabel} />
         </span>
       ) : null}
     </Link>

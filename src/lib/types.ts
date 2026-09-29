@@ -3,6 +3,9 @@ import type { NotificationType, OrganizationType, PostMediaRow } from "@/types/d
 export type {
   ActorRow,
   CharacterRow,
+  DmConversationRow,
+  DmMessageRow,
+  DmParticipantRow,
   FollowRow,
   HashtagRow,
   LikeRow,
@@ -107,6 +110,37 @@ export interface NotificationView {
   post: { id: string; content: string | null; exists: boolean } | null;
   /** Autor da publicação citada, para a linha de resumo. */
   target: ActorSummary | null;
+}
+
+/** Uma mensagem na conversa. */
+export interface MessageView {
+  id: string;
+  content: string;
+  created_at: string;
+  author: ActorSummary;
+  /** A mensagem sai com as identidades do próprio usuário à direita. */
+  mine: boolean;
+}
+
+export interface ConversationCard {
+  id: string;
+  kind: "direct" | "group";
+  title: string;
+  last_message_at: string;
+  /** Última mensagem, para a linha de resumo da caixa. */
+  preview: string | null;
+  /** Quem participa, para o título e o avatar da conversa direta. */
+  participants: ActorSummary[];
+  unread: number;
+}
+
+/** Uma conversa aberta, com o que a thread precisa para se desenhar. */
+export interface ConversationView extends ConversationCard {
+  /** O que o cabeçalho mostra acima do histórico. */
+  subtitle: string;
+  messages: MessageView[];
+  /** Tem conversa anterior para carregar com o "carregar mais". */
+  hasMore: boolean;
 }
 
 export interface ActorProfile extends ActorSummary {

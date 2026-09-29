@@ -4,6 +4,7 @@ import { Settings } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp, Handle } from "@/components/ui/account-type";
 import { FollowButton, Stat } from "@/components/profile/follow-button";
+import { MessageButton } from "@/components/messages/message-button";
 import { ButtonLink } from "@/components/ui/button";
 import { accountTypeOf } from "@/lib/site";
 import type { ActorProfile } from "@/lib/types";
@@ -69,11 +70,14 @@ export function ProfileHeader({
             ) : null}
 
             {profile.viewer.isSelf ? null : (
-              <FollowButton
-                targetActorId={profile.id}
-                initialFollowing={profile.viewer.isFollowing}
-                initialFollowers={profile.stats.followers}
-              />
+              <>
+                <MessageButton targetActorId={profile.id} />
+                <FollowButton
+                  targetActorId={profile.id}
+                  initialFollowing={profile.viewer.isFollowing}
+                  initialFollowers={profile.stats.followers}
+                />
+              </>
             )}
           </div>
         </div>

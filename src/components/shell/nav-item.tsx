@@ -10,6 +10,7 @@ export function NavItem({
   label,
   icon,
   badge,
+  badgeLabel = "notificações não lidas",
   exact = false,
   onNavigate,
 }: {
@@ -17,6 +18,8 @@ export function NavItem({
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  /** O que o selo conta, para o leitor de tela não falar de notificações onde são mensagens. */
+  badgeLabel?: string;
   exact?: boolean;
   onNavigate?: () => void;
 }) {
@@ -39,17 +42,17 @@ export function NavItem({
         {icon}
       </span>
       <span className="flex-1">{label}</span>
-      {badge ? <UnreadBadge value={badge} /> : null}
+      {badge ? <UnreadBadge value={badge} label={badgeLabel} /> : null}
     </Link>
   );
 }
 
-export function UnreadBadge({ value }: { value: number }) {
+export function UnreadBadge({ value, label = "notificações não lidas" }: { value: number; label?: string }) {
   if (value < 1) return null;
   return (
     <span className="min-w-5 bg-accent px-1.5 py-0.5 text-center font-mono text-[10px] leading-none text-bg tabular-nums">
       {value > 99 ? "99+" : value}
-      <span className="sr-only"> notificações não lidas</span>
+      <span className="sr-only"> {label}</span>
     </span>
   );
 }

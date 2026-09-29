@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, OrganizationType } from "@/types/database";
 import type { ActorSummary } from "@/lib/types";
+import type { Viewer } from "@/lib/session";
 
 export type DataClient = SupabaseClient<Database>;
 
@@ -53,6 +54,21 @@ export async function loadIdentities(
     .order("display_name");
 
   return (data ?? []).map(toActorCard);
+}
+
+/**
+ * Identidade com que a pessoa fala em conversa privada.
+ *
+ * Só personagem que tem dono: NPC e organização não têm caixa de entrada, e é
+ * justamente isso que impede o Mestre de ler a conversa dos jogadores. O banco
+ * (public.my_dm_actor_ids) é a autoridade; aqui só escolhemos a identidade certa
+ * para não errar o remetente na tela.
+ */
+export function dmIdentityOf(viewer: Viewer): ActorSummary | null {
+  const owned = viewer.identities.filter(
+    (actor) => actor.entity_type === "character" && actor.is_npc !== true,
+  );
+  return owned.find((actor) => actor.id === viewer.activeActorId) ?? owned[0] ?? null;
 }
 
 /** Normaliza a linha do PostgREST (com embeds) para o formato de domínio. */

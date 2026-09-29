@@ -95,6 +95,32 @@ export const replySchema = z.object({
   media: createPostSchema.shape.media,
 });
 
+/**
+ * Conversa privada. O limite de 4000 caracteres é o do banco (a constraint
+ * `dm_messages_conteudo`), repetido aqui para o erro aparecer no campo em vez de
+ * virar recusa do RLS.
+ */
+export const messageContentField = trimmed.pipe(
+  z
+    .string()
+    .min(1, "Escreva algo antes de enviar.")
+    .max(4000, "O limite é 4000 caracteres."),
+);
+
+export const groupTitleField = trimmed.pipe(
+  z.string().min(1, "Dê um nome à conversa.").max(60, "Máximo de 60 caracteres."),
+);
+
+export const messageSchema = z.object({
+  conversationId: z.string().uuid("Conversa inválida."),
+  content: messageContentField,
+});
+
+export const groupSchema = z.object({
+  title: groupTitleField,
+  members: z.array(z.string().uuid()).min(1, "Convide pelo menos uma pessoa."),
+});
+
 /** Recorte simples para transformar erros do Zod em `{ campo: mensagem }`. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {
   const result: Record<string, string> = {};
@@ -105,6 +131,18 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   return result;
 }
 
-export type ActionState = { ok: boolean; message?: string; errors?: Record<string, string> };
+/**
+ * Estado devolvido por uma Server Action de formulário.
+ *
+ * `conversationId` existe para as ações que criam algo e precisam dizer onde ele
+ * foi parar — abrir uma conversa e levar a pessoa direto até ela, em vez de
+ * deixá-la adivinhando na caixa.
+ */
+export type ActionState = {
+  ok: boolean;
+  message?: string;
+  errors?: Record<string, string>;
+  conversationId?: string;
+};
 
 export const idleState: ActionState = { ok: false };

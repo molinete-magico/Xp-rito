@@ -8,10 +8,17 @@
 -- cliente já escuta, tornando a atualização instantânea.
 --
 -- Idempotente: pode rodar quantas vezes for preciso.
+--
+-- A publicação só existe em um projeto Supabase de verdade; o guarda externo
+-- mantém a migration aplicável no Postgres de teste, que não tem Realtime.
 -- =============================================================================
 
 do $$
 begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    return;
+  end if;
+
   if not exists (
     select 1 from pg_publication_tables
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'posts'
