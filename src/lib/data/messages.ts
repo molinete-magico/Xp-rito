@@ -255,17 +255,25 @@ export function subtitleOf(
   participants: ActorSummary[],
   mine: Set<string>,
 ): string {
+  const myVoices = participants.filter((actor) => mine.has(actor.id));
+  const myVoiceLabel =
+    myVoices.length === 0
+      ? ""
+      : myVoices.length === 1
+        ? `Como ${myVoices[0].display_name}`
+        : `Como ${myVoices.length} identidades suas`;
+
   if (conversation.kind === "group") {
-    if (participants.length === 0) return "Só você";
-    const plural = participants.length === 1 ? "participante" : "participantes";
-    return `${participants.map((actor) => actor.display_name).join(", ")} · ${participants.length} ${plural}`;
+    if (participants.length === 0) return myVoiceLabel || "Só você";
+    const participantLabel = participants.length === 1 ? "participante" : "participantes";
+    return myVoiceLabel
+      ? `${myVoiceLabel} · ${participants.length} ${participantLabel}`
+      : `${participants.length} ${participantLabel}`;
   }
-  // Na DM direta o @ de quem lê não diz nada: ele sabe o próprio, e o do Mestre
-  // era justamente o que embaralhava, porque "@Madn3S5 @henri" não diz qual dos
-  // dois é ele. Fica o do outro, que é o que a tela precisa dizer.
+
   const others = participants.filter((actor) => !mine.has(actor.id));
-  if (others.length === 0) return "";
-  return others.map((actor) => `@${actor.username}`).join(" ");
+  const otherLabel = others.map((actor) => `@${actor.username}`).join(" ");
+  return [myVoiceLabel, otherLabel].filter(Boolean).join(" · ");
 }
 
 const unknownActor: Parameters<typeof toActorCard>[0] = {
