@@ -24,7 +24,10 @@ export function ConversationRow({
   viewer: Viewer;
   active?: boolean;
 }) {
-  const others = conversation.participants.filter((actor) => !viewer.identities.some((mine) => mine.id === actor.id));
+  const myIds = new Set(viewer.identities.map((actor) => actor.id));
+  const others = conversation.participants.filter((actor) => !myIds.has(actor.id));
+  const myVoices = conversation.participants.filter((actor) => myIds.has(actor.id));
+  const npcVoices = myVoices.filter((actor) => actor.entity_type === "character" && actor.is_npc === true);
   const unread = conversation.unread > 0;
 
   return (
@@ -62,7 +65,7 @@ export function ConversationRow({
         </span>
 
         <span className="mt-0.5 flex items-center gap-2">
-          <span className={cn("line-clamp-1 flex-1 text-sm text-ink-2", unread && "text-ink")}>
+          <span className={cn("line-clamp-1 min-w-0 flex-1 text-sm text-ink-2", unread && "text-ink")}>
             {conversation.preview ?? "Nenhuma mensagem ainda"}
           </span>
           {unread ? (
@@ -74,6 +77,16 @@ export function ConversationRow({
             </span>
           ) : null}
         </span>
+
+        {viewer.isGm && myVoices.length > 0 ? (
+          <span className="mt-1 block truncate text-[11px] text-ink-3">
+            {npcVoices.length > 0
+              ? `Como ${npcVoices.map((actor) => actor.display_name).join(", ")}`
+              : myVoices.length === 1
+                ? `Como ${myVoices[0].display_name}`
+                : `${myVoices.length} identidades suas nesta conversa`}
+          </span>
+        ) : null}
       </span>
     </Link>
   );
