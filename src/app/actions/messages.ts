@@ -117,15 +117,17 @@ export async function markConversationReadAction(
   conversationId: string,
   throughCreatedAt: string,
   throughMessageId: string,
-): Promise<void> {
+): Promise<{ error?: string }> {
   await requireViewer();
   const supabase = await createClient();
-  await supabase.rpc("dm_mark_read", {
+  const { error } = await supabase.rpc("dm_mark_read", {
     target: conversationId,
     through_created_at: throughCreatedAt,
     through_message_id: throughMessageId,
   });
+  if (error) return { error: "Não foi possível atualizar a leitura." };
   revalidateMessages(conversationId);
+  return {};
 }
 
 /** Some da minha caixa. O histórico dos outros participantes continua lá. */
