@@ -191,6 +191,25 @@
     text-decoration: underline;
   }
 
+  /* Moldura comum das páginas: mesma linguagem do perfil, sem transformar
+     cada seção em um card. A hierarquia vem de fios, espaço e tipografia. */
+  .interface-header {
+    border-bottom: 1px solid var(--line);
+    padding: 0.75rem 1rem;
+  }
+
+  .interface-header__content {
+    padding: 0.75rem 1rem;
+  }
+
+  @media (min-width: 1024px) {
+    .interface-header,
+    .interface-header__content {
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+    }
+  }
+
   /* Superfície padrão: papel, fio por cima, canto vivo. */
   .sheet {
     background-color: var(--surface);
