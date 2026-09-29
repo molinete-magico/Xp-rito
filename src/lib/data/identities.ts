@@ -85,6 +85,16 @@ export function dmSpeakerCandidates(
  * dá para filtrar pelos participantes, então a lista é a do próprio usuário. Para
  * o Mestre, isso inclui os NPCs da mesa.
  */
+/** Escolha inicial previsível: personagem próprio, depois NPC, por fim organização. */
+export function preferredActiveActorId(identities: ActorSummary[]): string | null {
+  return (
+    identities.find((actor) => actor.entity_type === "character" && actor.is_npc !== true)?.id
+    ?? identities.find((actor) => actor.entity_type === "character" && actor.is_npc === true)?.id
+    ?? identities.find((actor) => actor.entity_type === "organization")?.id
+    ?? null
+  );
+}
+
 export function dmVoiceIdentities(viewer: Viewer): ActorSummary[] {
   return viewer.identities.filter(
     (actor) => actor.entity_type === "character" && (actor.is_npc !== true || viewer.isGm),
