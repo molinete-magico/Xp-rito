@@ -26,6 +26,31 @@ export function InboxStream() {
   const [search, setSearch] = useState("");
   const [masterFilter, setMasterFilter] = useState<"all" | "characters" | "npcs">("all");
 
+  const filteredConversations = useMemo(() => {
+    if (!viewer) return [];
+    const term = search.trim().toLocaleLowerCase();
+    const mine = new Set(viewer.identities.map((actor) => actor.id));
+
+    return (conversations ?? []).filter((conversation) => {
+      const voices = conversation.participants.filter((actor) => mine.has(actor.id));
+      const matchesFilter =
+        !viewer.isGm ||
+        masterFilter === "all" ||
+        (masterFilter === "npcs" && voices.some((actor) => actor.is_npc === true)) ||
+        (masterFilter === "characters" && voices.some((actor) => actor.entity_type === "character" && actor.is_npc !== true));
+
+      if (!matchesFilter) return false;
+      if (!term) return true;
+
+      return [
+        conversation.title,
+        conversation.preview ?? "",
+        ...conversation.participants.map((actor) => actor.display_name),
+        ...conversation.participants.map((actor) => actor.username),
+      ].some((value) => value.toLocaleLowerCase().includes(term));
+    });
+  }, [conversations, masterFilter, search, viewer]);
+
   const reload = useCallback(async () => {
     if (!client || !viewer) return;
     try {
@@ -96,29 +121,7 @@ export function InboxStream() {
     );
   }
 
-  const filteredConversations = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase();
-    const mine = new Set(viewer.identities.map((actor) => actor.id));
 
-    return (conversations ?? []).filter((conversation) => {
-      const voices = conversation.participants.filter((actor) => mine.has(actor.id));
-      const matchesFilter =
-        !viewer.isGm ||
-        masterFilter === "all" ||
-        (masterFilter === "npcs" && voices.some((actor) => actor.is_npc === true)) ||
-        (masterFilter === "characters" && voices.some((actor) => actor.entity_type === "character" && actor.is_npc !== true));
-
-      if (!matchesFilter) return false;
-      if (!term) return true;
-
-      return [
-        conversation.title,
-        conversation.preview ?? "",
-        ...conversation.participants.map((actor) => actor.display_name),
-        ...conversation.participants.map((actor) => actor.username),
-      ].some((value) => value.toLocaleLowerCase().includes(term));
-    });
-  }, [conversations, masterFilter, search, viewer]);
 
   if (conversations && conversations.length === 0) {
     // O botão de grupo fica no estado vazio: é a única forma de começar.
