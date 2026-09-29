@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { setActiveActorAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp } from "@/components/ui/account-type";
+import { useSession } from "@/components/shell/session-provider";
 import { accountTypeOf } from "@/lib/site";
 import type { ActorSummary } from "@/lib/types";
 
@@ -26,6 +27,7 @@ export function IdentitySwitcher({
   size?: "sm" | "md";
 }) {
   const router = useRouter();
+  const { setActiveActor } = useSession();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
 
@@ -35,6 +37,7 @@ export function IdentitySwitcher({
 
   function choose(actorId: string) {
     setOpen(false);
+    setActiveActor(actorId);
     startTransition(async () => {
       await setActiveActorAction(actorId);
       router.refresh();

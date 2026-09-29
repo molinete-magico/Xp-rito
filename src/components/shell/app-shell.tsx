@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Avatar } from "@/components/ui/avatar";
 import { SideNav, BottomNav } from "@/components/shell/navigation";
+import { CharacterSwitcher } from "@/components/shell/character-switcher";
 import { SidePanel } from "@/components/shell/side-panel";
 import { UnreadProvider } from "@/components/shell/unread-provider";
 import { useSession } from "@/components/shell/session-provider";
@@ -23,7 +23,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const identities = viewer?.identities ?? [];
   const activeActorId = viewer?.activeActorId ?? null;
   const isGm = viewer?.isGm ?? false;
-  const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
   const actorIds = identities.map((actor) => actor.id);
 
   return (
@@ -40,16 +39,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/home" className="font-display text-base leading-none text-ink">
             {site.name}
           </Link>
-          {active ? (
-            <Link href={`/profile/${active.username}`} aria-label="Abrir seu perfil">
-              <Avatar
-                name={active.display_name}
-                username={active.username}
-                src={active.avatar_url}
-                size="sm"
-                decorative
-              />
-            </Link>
+          {viewer ? (
+            <CharacterSwitcher
+              identities={identities}
+              activeActorId={activeActorId}
+              isGm={isGm}
+              variant="avatar"
+            />
           ) : (
             <span className="label text-ink-3">{isLoading ? "…" : "sem identidade"}</span>
           )}

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Compass, Home, Shield, User } from "lucide-react";
 import { NavItem, UnreadBadge } from "@/components/shell/nav-item";
 import { useUnread } from "@/components/shell/unread-provider";
-import { AccountMenuClient } from "@/components/shell/account-menu-client";
+import { CharacterSwitcher } from "@/components/shell/character-switcher";
 import { site } from "@/lib/site";
 import { cn } from "@/lib/cn";
 import type { ActorSummary } from "@/lib/types";
@@ -39,7 +39,7 @@ export function SideNav({
 
       <div className="mt-auto space-y-1 border-t border-line pt-3">
         {isGm ? <NavItem href="/admin" label="Painel do Mestre" icon={<Shield />} /> : null}
-        <AccountMenuClient identities={identities} activeActorId={activeActorId} isGm={isGm} />
+        <CharacterSwitcher identities={identities} activeActorId={activeActorId} isGm={isGm} />
       </div>
     </>
   );
