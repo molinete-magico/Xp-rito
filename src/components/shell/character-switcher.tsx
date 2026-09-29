@@ -1,43 +1,32 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeftRight,
-  Check,
-  LogOut,
-  Settings,
-  Shield,
-  User,
-} from "lucide-react";
+import { Check, LogOut, Settings, Shield, User } from "lucide-react";
 import { setActiveActorAction, signOutAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp, Handle } from "@/components/ui/account-type";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/menu";
 import { useSession } from "@/components/shell/session-provider";
 import { accountTypeOf } from "@/lib/site";
-import { cn } from "@/lib/cn";
 import type { ActorSummary } from "@/lib/types";
 
 /**
- * Identidade na coluna lateral (desktop) e troca de personagem.
+ * Troca de personagem, no cabeçalho do celular.
  *
- * No desktop o nome e o avatar levam ao perfil — trocar de conta é ação
- * deliberada, em um botão separado. No celular o avatar abre o mesmo menu de
- * troca, porque não há espaço para os dois.
+ * O avatar abre o menu com as identidades que o RLS libera — personagens do
+ * jogador, NPCs e organizações do Mestre —, marca com quem se está falando e
+ * refaz a página depois de trocar, para o feed e o compositor passarem a
+ * responder pelo novo perfil imediatamente.
  */
-
 export function CharacterSwitcher({
   identities,
   activeActorId,
   isGm,
-  variant = "list",
 }: {
   identities: ActorSummary[];
   activeActorId: string | null;
   isGm: boolean;
-  variant?: "list" | "avatar";
 }) {
   const router = useRouter();
   const { setActiveActor } = useSession();
@@ -74,66 +63,28 @@ export function CharacterSwitcher({
     });
   }
 
-  const profileHref = active ? `/profile/${active.username}` : "/settings";
-
   return (
-    <div className={cn(variant === "list" && "flex items-center gap-0.5")}>
-      {variant === "list" && active ? (
-        <Link
-          href={profileHref}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xs px-2 py-2 transition-colors hover:bg-sunken"
-        >
-          <Avatar
-            name={active.display_name}
-            username={active.username}
-            src={active.avatar_url}
-            size="sm"
-            decorative
-          />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm text-ink">{active.display_name}</span>
-            <span className="block truncate font-mono text-[11px] text-ink-3">
-              @{active.username}
+    <Menu
+      label="Conta"
+      align="end"
+      trigger={(props) => (
+        <button {...props} type="button" aria-label="Conta" className="rounded-full p-1 transition-colors hover:bg-sunken">
+          {active ? (
+            <Avatar
+              name={active.display_name}
+              username={active.username}
+              src={active.avatar_url}
+              size="sm"
+              decorative
+            />
+          ) : (
+            <span className="flex h-8 w-8 items-center justify-center border border-line text-xs text-ink-3">
+              ?
             </span>
-          </span>
-        </Link>
-      ) : null}
-
-      <Menu
-        label="Conta"
-        align={variant === "list" ? "start" : "end"}
-        className={cn(variant === "list" && "w-[280px]", variant === "avatar" && "")}
-        trigger={(props) => (
-          <button
-            {...props}
-            type="button"
-            aria-label={variant === "list" ? "Trocar de personagem" : "Conta"}
-            title={variant === "list" ? "Trocar de personagem" : undefined}
-            className={cn(
-              "shrink-0 rounded-xs transition-colors hover:bg-sunken",
-              variant === "list"
-                ? "grid h-10 w-8 place-items-center border border-line text-ink-3 hover:text-ink"
-                : "justify-center rounded-full p-1",
-            )}
-          >
-            {variant === "list" ? (
-              <ArrowLeftRight aria-hidden="true" className="h-4 w-4" />
-            ) : active ? (
-              <Avatar
-                name={active.display_name}
-                username={active.username}
-                src={active.avatar_url}
-                size="sm"
-                decorative
-              />
-            ) : (
-              <span className="flex h-8 w-8 items-center justify-center border border-line text-xs text-ink-3">
-                ?
-              </span>
-            )}
-          </button>
-        )}
-      >
+          )}
+        </button>
+      )}
+    >
         {(close) => (
           <>
             {active ? (
@@ -249,7 +200,6 @@ export function CharacterSwitcher({
           </>
         )}
       </Menu>
-    </div>
   );
 }
 

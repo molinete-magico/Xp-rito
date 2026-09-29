@@ -44,7 +44,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               identities={identities}
               activeActorId={activeActorId}
               isGm={isGm}
-              variant="avatar"
             />
           ) : (
             <span className="label text-ink-3">{isLoading ? "…" : "sem identidade"}</span>
