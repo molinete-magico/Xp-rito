@@ -41,7 +41,9 @@ export function PostActions({
   const [reposted, setReposted] = useState(viewer.reposted);
   const [likeCount, setLikeCount] = useState(stats.likes);
   const [repostCount, setRepostCount] = useState(stats.reposts);
-  const [copied, setCopied] = useState(false);\n  const [editing, setEditing] = useState(false);\n  const [draft, setDraft] = useState(content ?? "");
+  const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(content ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
