@@ -112,7 +112,7 @@ export function MessageComposer({
             <label htmlFor={`sender-${conversationId}`} className="sr-only">
               Enviar como
             </label>
-            <span className="sr-only">Falar como</span>
+            <span className="hidden text-[11px] text-ink-3 sm:inline">Como</span>
             <Select
               id={`sender-${conversationId}`}
               name="senderEscolhido"
