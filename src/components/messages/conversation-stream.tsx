@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, MoreHorizontal, Trash2 } from "lucide-react";
@@ -44,6 +44,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   const [actionError, setActionError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
+  const scrollAdjustment = useRef<{ height: number; top: number } | null>(null);
 
   const reload = useCallback(async () => {
     if (!client || !viewer) return;
@@ -62,7 +63,16 @@ export function ConversationStream({ conversationId }: { conversationId: string 
     async (isCurrent: () => boolean) => {
       if (!client || !viewer) return null;
       const view = await loadConversation(client, viewer, conversationId);
-      if (view && isCurrent()) void markConversationReadAction(conversationId).then(refreshUnread);
+      if (view && isCurrent()) {
+        const lastVisible = view.messages.at(-1);
+        if (lastVisible) {
+          void markConversationReadAction(
+            conversationId,
+            lastVisible.created_at,
+            lastVisible.id,
+          ).then(refreshUnread);
+        }
+      }
       return view;
     },
     [client, viewer, conversationId, refreshUnread],
@@ -110,6 +120,14 @@ export function ConversationStream({ conversationId }: { conversationId: string 
     if (nearBottom.current) bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messageCount]);
 
+  useLayoutEffect(() => {
+    const adjustment = scrollAdjustment.current;
+    const scroller = bottomRef.current?.parentElement;
+    if (!adjustment || !scroller) return;
+    scroller.scrollTop = adjustment.top + (scroller.scrollHeight - adjustment.height);
+    scrollAdjustment.current = null;
+  }, [conversation?.messages.length]);
+
   if (isLoading || !viewer) {
     return (
       <div className="px-4 py-10 text-center">
@@ -147,19 +165,32 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   async function loadOlder() {
     if (!client || !viewer || !conversation || conversation.messages.length === 0) return;
     const first = conversation.messages[0];
+    const scroller = bottomRef.current?.parentElement;
+    if (!scroller) return;
+
     setLoadingMore(true);
-    const older = await loadConversation(client, viewer, conversationId, {
-      before: formatMessageCursor(first.created_at, first.id),
-      limit: MESSAGE_PAGE_SIZE,
-    });
-    if (older) {
-      setConversation((current) =>
-        current
-          ? { ...current, messages: [...older.messages, ...current.messages], hasMore: older.hasMore }
-          : current,
-      );
+    const previousHeight = scroller.scrollHeight;
+    const previousTop = scroller.scrollTop;
+
+    try {
+      const older = await loadConversation(client, viewer, conversationId, {
+        before: formatMessageCursor(first.created_at, first.id),
+        limit: MESSAGE_PAGE_SIZE,
+      });
+
+      if (older) {
+        scrollAdjustment.current = { height: previousHeight, top: previousTop };
+        setConversation((current) =>
+          current
+            ? { ...current, messages: [...older.messages, ...current.messages], hasMore: older.hasMore }
+            : current,
+        );
+      }
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : "Não foi possível carregar mensagens anteriores.");
+    } finally {
+      setLoadingMore(false);
     }
-    setLoadingMore(false);
   }
 
   async function hide() {
@@ -197,7 +228,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   const mineActors = new Set(speakers.map((speaker) => speaker.id));
 
   function addInflight(sender: ActorSummary, content: string) {
-    const id = `optimistic-${Date.now()}`;
+    const id = `optimistic-${crypto.randomUUID()}`;
     // A mensagem otimista sai do lado de quem escreve, e quem escreve é o
     // remetente escolhido agora — o mesmo que o formulário vai mandar.
     const message = optimisticMessage(sender, id, content, mineActors.has(sender.id));
@@ -207,7 +238,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
 
   function settleInflight(ok: boolean, optimisticId: string) {
     if (ok) {
-      setInflight([]);
+      setInflight((current) => current.filter((message) => message.id !== optimisticId));
       void reload();
       return;
     }
