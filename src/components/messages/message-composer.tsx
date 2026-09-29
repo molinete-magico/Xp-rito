@@ -82,7 +82,11 @@ export function MessageComposer({
           event.preventDefault();
           return;
         }
-        onPending(chosen, content);
+        // O id devolvido é o que amarra a mensagem otimista à resposta do banco.
+        // Sem guardar aqui, `inFlight` fica vazio, o efeito de conclusão não tem o
+        // que confirmar, e a mensagem otimista nunca sai da tela: quando a versão
+        // real chega pelo Realtime, a pessoa vê a mesma mensagem duas vezes.
+        inFlight.current = onPending(chosen, content);
       }}
     >
       <input type="hidden" name="conversationId" value={conversationId} />
