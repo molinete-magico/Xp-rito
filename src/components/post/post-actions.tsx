@@ -13,7 +13,7 @@ import {
   Share2,
   Trash2,
 } from "lucide-react";
-import { toggleLikeAction, toggleRepostAction, deletePostAction } from "@/app/actions/posts";
+import { toggleLikeAction, toggleRepostAction, deletePostAction, updatePostAction } from "@/app/actions/posts";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
 import { cn } from "@/lib/cn";
 import type { PostStats, ViewerInteraction } from "@/lib/types";
@@ -41,7 +41,7 @@ export function PostActions({
   const [reposted, setReposted] = useState(viewer.reposted);
   const [likeCount, setLikeCount] = useState(stats.likes);
   const [repostCount, setRepostCount] = useState(stats.reposts);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false);\n  const [editing, setEditing] = useState(false);\n  const [draft, setDraft] = useState(content ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -86,6 +86,16 @@ export function PostActions({
         setError(result.error);
       }
     });
+  }
+
+  async function onSaveEdit() {
+    setError(null);
+    const result = await updatePostAction(postId, draft);
+    if (result.ok) {
+      setEditing(false);
+    } else {
+      setError(result.error ?? "Não foi possível editar a publicação.");
+    }
   }
 
   function onRepost() {
