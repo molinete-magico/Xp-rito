@@ -88,6 +88,11 @@ export const createPostSchema = z.object({
   repostOf: z.string().uuid().nullable().default(null),
 });
 
+export const editPostSchema = z.object({
+  postId: z.string().uuid("Publicação inválida."),
+  content: postContentField,
+});
+
 export const replySchema = z.object({
   actorId: actorIdField,
   postId: z.string().uuid("Publicação inválida."),

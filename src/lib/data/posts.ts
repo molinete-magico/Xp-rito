@@ -54,6 +54,8 @@ type PostRow = {
 
 export type PostScope =
   | { kind: "recentes" }
+  | { kind: "explorar" }
+  | { kind: "respostas-recentes" }
   | { kind: "identidades"; actorIds: string[] }
   | { kind: "seguindo"; actorIds: string[] }
   | { kind: "ator"; actorId: string }
@@ -246,6 +248,7 @@ async function hydrate(client: Client, viewer: Viewer, rows: PostRow[]): Promise
         liked: postLikes.some((like) => viewerActorIds.has(like.actor_id as string)),
         reposted: postReposts.some((repost) => viewerActorIds.has(repost.actor_id as string)),
         canDelete: viewer.isGm || viewerActorIds.has(toActorCard(row.author).id),
+        canEdit: viewer.isGm || viewerActorIds.has(toActorCard(row.author).id),
       },
       edited: row.updated_at !== row.created_at,
     };

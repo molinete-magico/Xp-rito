@@ -10,10 +10,12 @@ import {
   MessageCircle,
   MoreHorizontal,
   Repeat2,
+  Save,
   Share2,
   Trash2,
+  X,
 } from "lucide-react";
-import { toggleLikeAction, toggleRepostAction, deletePostAction } from "@/app/actions/posts";
+import { toggleLikeAction, toggleRepostAction, deletePostAction, updatePostAction } from "@/app/actions/posts";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
 import { cn } from "@/lib/cn";
 import type { PostStats, ViewerInteraction } from "@/lib/types";
@@ -31,17 +33,21 @@ export function PostActions({
   stats,
   viewer,
   username,
+  content,
 }: {
   postId: string;
   stats: PostStats;
   viewer: ViewerInteraction;
   username: string;
+  content: string | null;
 }) {
   const [liked, setLiked] = useState(viewer.liked);
   const [reposted, setReposted] = useState(viewer.reposted);
   const [likeCount, setLikeCount] = useState(stats.likes);
   const [repostCount, setRepostCount] = useState(stats.reposts);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(content ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -88,6 +94,16 @@ export function PostActions({
     });
   }
 
+  async function onSaveEdit() {
+    setError(null);
+    const result = await updatePostAction(postId, draft);
+    if (result.ok) {
+      setEditing(false);
+    } else {
+      setError(result.error ?? "Não foi possível editar a publicação.");
+    }
+  }
+
   function onRepost() {
     const next = !reposted;
     setReposted(next);
@@ -116,7 +132,33 @@ export function PostActions({
   }
 
   return (
-    <div className="mt-3 flex items-center gap-1">
+    <div className="mt-3 space-y-2">
+      {editing ? (
+        <div className="space-y-2">
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            maxLength={1000}
+            rows={4}
+            autoFocus
+            className="w-full resize-y rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink-3"
+            aria-label="Editar publicação"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-ink-3">{draft.length}/1000</span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setDraft(content ?? ""); setEditing(false); }} className="inline-flex h-8 items-center gap-1 rounded-xs px-2 text-xs text-ink-3 hover:bg-sunken hover:text-ink-2">
+                <X className="h-4 w-4" /> Cancelar
+              </button>
+              <button type="button" onClick={() => void onSaveEdit()} disabled={pending || !draft.trim()} className="inline-flex h-8 items-center gap-1 rounded-xs bg-ink px-3 text-xs text-surface disabled:opacity-50">
+                <Save className="h-4 w-4" /> Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex items-center gap-1">
       <ActionLink href={`/post/${postId}`} label="Responder" count={stats.replies}>
         <MessageCircle aria-hidden="true" />
       </ActionLink>
@@ -168,6 +210,12 @@ export function PostActions({
                 <Copy aria-hidden="true" className="h-4 w-4" />
                 Copiar endereço
               </MenuItem>
+              {viewer.canEdit ? (
+                <MenuItem onSelect={() => { close(); setDraft(content ?? ""); setEditing(true); setError(null); }}>
+                  <Save aria-hidden="true" className="h-4 w-4" />
+                  Editar publicação
+                </MenuItem>
+              ) : null}
               <MenuSeparator />
               <MenuItem
                 destructive
@@ -197,6 +245,7 @@ export function PostActions({
       <span className="sr-only">
         Post de {username} com {stats.replies} respostas, {repostCount} reposts e {likeCount} curtidas.
       </span>
+      </div>
     </div>
   );
 }
