@@ -32,7 +32,7 @@ export default async function SettingsPage() {
   const others = viewer.identities.filter((actor) => actor.is_npc);
 
   return (
-    <div className="px-4 py-5">
+    <div className="px-4 py-5 lg:px-5 xl:px-6 2xl:px-8">
       <h1 className="font-display text-lg text-ink">Configurações</h1>
 
       <section aria-labelledby="secao-conta" className="mt-6">
