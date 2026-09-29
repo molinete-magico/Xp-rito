@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { loadIdentities, type DataClient } from "@/lib/data/identities";
+import { loadIdentities, preferredActiveActorId, type DataClient } from "@/lib/data/identities";
 import type { Viewer } from "@/lib/session";
 
 /**
@@ -30,7 +30,7 @@ export async function buildClientViewer(client: DataClient): Promise<Viewer | nu
   if (!profile) return null;
 
   const identities = await loadIdentities(client, user.id, profile.role === "gm");
-  const activeActorId = identities[0]?.id ?? null;
+  const activeActorId = preferredActiveActorId(identities);
 
   return {
     userId: user.id,
