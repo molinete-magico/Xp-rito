@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, MoreHorizontal, Trash2 } from "lucide-react";
 import { useSession } from "@/components/shell/session-provider";
-import { useDmRefreshUnread, useDmSignal } from "@/components/shell/dm-unread-provider";
+import { useDmRefreshUnread } from "@/components/shell/dm-unread-provider";
 import { MessageComposer } from "@/components/messages/message-composer";
 import { Avatar } from "@/components/ui/avatar";
 import { ErrorState, Spinner } from "@/components/ui/empty-state";
@@ -36,7 +36,6 @@ import type { ActorSummary, ConversationView, MessageView } from "@/lib/types";
 export function ConversationStream({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const { viewer, client, isLoading } = useSession();
-  const signal = useDmSignal();
   const refreshUnread = useDmRefreshUnread();
   const [conversation, setConversation] = useState<ConversationView | null>(null);
   const [inflight, setInflight] = useState<MessageView[]>([]);
@@ -103,22 +102,36 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   }, [client, viewer, fetchAndMarkRead]);
 
   useEffect(() => {
-    if (signal === 0 || !client || !viewer) return;
-    let cancelled = false;
+    if (!client || !viewer) return;
 
-    (async () => {
-      const view = await fetchAndMarkRead(() => !cancelled);
-      if (cancelled || !view) return;
-      setNotFound(false);
-      setConversation(view);
-    })().catch(() => {
-      // Uma falha momentânea não pode apagar o histórico que já está na tela.
-    });
+    const channel = client
+      .channel(`dm-conversation:${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "dm_messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          void fetchAndMarkRead(() => true)
+            .then((view) => {
+              if (!view) return;
+              setNotFound(false);
+              setConversation(view);
+            })
+            .catch(() => {
+              // Uma falha momentânea não pode apagar o histórico que já está na tela.
+            });
+        },
+      )
+      .subscribe();
 
     return () => {
-      cancelled = true;
+      void client.removeChannel(channel);
     };
-  }, [signal, client, viewer, fetchAndMarkRead]);
+  }, [client, viewer, conversationId, fetchAndMarkRead]);
 
   const messageCount = (conversation?.messages.length ?? 0) + inflight.length;
   useEffect(() => {
