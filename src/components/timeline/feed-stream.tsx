@@ -109,7 +109,7 @@ export function FeedStream({
 
   if (!ready) {
     return (
-      <div className="mx-auto w-full max-w-[820px]">
+      <div className="w-full">
         <PostFeedSkeleton />
       </div>
     );
@@ -117,14 +117,14 @@ export function FeedStream({
 
   if (page === null) {
     return (
-      <div className="mx-auto w-full max-w-[820px]">
+      <div className="w-full">
         {error ? <ErrorState /> : <PostFeedSkeleton />}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-[820px]">
+    <div className="w-full">
       <PostTimeline
         posts={page.posts as PostCardData[]}
         nextCursor={page.nextCursor}
