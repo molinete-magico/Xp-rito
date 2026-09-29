@@ -14,7 +14,7 @@ import { PublishBar } from "@/components/feed/publish-bar";
 export default function HomePage() {
   return (
     <>
-      <div className="border-b border-line px-4 py-3">
+      <div className="interface-header">
         <h1 className="font-display text-lg text-ink">Início</h1>
       </div>
 
