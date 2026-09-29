@@ -9,6 +9,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { buttonClass } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { ACTOR_FIELDS } from "@/lib/data/messages";
+import { accountTypeLabels, accountTypeOf } from "@/lib/site";
 import { dmSenderChoice, dmVoiceIdentities, toActorCard } from "@/lib/data/identities";
 import type { ActorSummary } from "@/lib/types";
 
@@ -124,7 +125,7 @@ function NewMessageDialog({ onClose }: { onClose: () => void }) {
           <div className="mb-4">
             <label htmlFor="new-message-sender" className="label text-ink-2">Enviando como</label>
             <Select id="new-message-sender" value={sender?.id ?? ""} onChange={(event) => setSenderId(event.currentTarget.value)} className="mt-1.5 w-full">
-              {voices.map((voice) => <option key={voice.id} value={voice.id}>{voice.display_name}</option>)}
+              {voices.map((voice) => <option key={voice.id} value={voice.id}>{voice.display_name} · {accountTypeLabels[accountTypeOf(voice)]}</option>)}
             </Select>
           </div>
         ) : null}
@@ -162,7 +163,10 @@ function NewMessageDialog({ onClose }: { onClose: () => void }) {
                 >
                   <Avatar name={actor.display_name} username={actor.username} src={actor.avatar_url} size="sm" decorative />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-ink">{actor.display_name}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-sm text-ink">{actor.display_name}</span>
+                      <span className="shrink-0 label text-ink-3">{accountTypeLabels[accountTypeOf(actor)]}</span>
+                    </span>
                     <span className="block truncate font-mono text-[11px] text-ink-3">@{actor.username}</span>
                   </span>
                 </button>
