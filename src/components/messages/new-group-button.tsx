@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquarePlus, X } from "lucide-react";
 import { useSession } from "@/components/shell/session-provider";
@@ -10,6 +10,7 @@ import { createGroupAction } from "@/app/actions/messages";
 import { loadMessageCandidates } from "@/lib/data/messages";
 import { dmSenderChoice, dmVoiceIdentities } from "@/lib/data/identities";
 import { idleState } from "@/lib/validation/schemas";
+import { accountTypeLabels, accountTypeOf } from "@/lib/site";
 import type { ActorSummary } from "@/lib/types";
 
 /**
@@ -65,10 +66,18 @@ function NewGroupDialog({
   const { viewer, client } = useSession();
   const [state, formAction, pending] = useActionState(createGroupAction, idleState);
   const [candidates, setCandidates] = useState<ActorSummary[] | null>(null);
+  const [search, setSearch] = useState("");
 
   const voices = viewer ? dmVoiceIdentities(viewer) : [];
   const [senderId, setSenderId] = useState<string | null>(presetVoiceId ?? null);
   const sender = viewer ? dmSenderChoice(viewer, senderId) : null;
+  const filteredCandidates = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    if (!term) return candidates ?? [];
+    return (candidates ?? []).filter((actor) =>
+      `${actor.display_name} ${actor.username}`.toLocaleLowerCase().includes(term),
+    );
+  }, [candidates, search]);
 
   useEffect(() => {
     if (!client || !viewer) return;
@@ -158,18 +167,32 @@ function NewGroupDialog({
                 Siga alguém para poder convidar. Ninguém que você não segue aparece aqui.
               </p>
             ) : (
-              <ul className="max-h-64 space-y-1 overflow-y-auto border border-line p-2">
-                {candidates.map((actor) => (
-                  <li key={actor.id}>
-                    <Checkbox
-                      name="members"
-                      value={actor.id}
-                      label={actor.display_name}
-                      description={`@${actor.username}`}
-                    />
-                  </li>
-                ))}
-              </ul>
+              <>
+                <label htmlFor="group-member-search" className="sr-only">Buscar participante</label>
+                <input
+                  id="group-member-search"
+                  value={search}
+                  onChange={(event) => setSearch(event.currentTarget.value)}
+                  placeholder="Buscar por nome ou @handle"
+                  className="w-full border border-line-2 bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-ink"
+                />
+                <ul className="max-h-64 space-y-1 overflow-y-auto border border-line p-2">
+                  {filteredCandidates.length === 0 ? (
+                    <li className="px-2 py-3 text-sm text-ink-3">Nenhum participante corresponde à busca.</li>
+                  ) : (
+                    filteredCandidates.map((actor) => (
+                      <li key={actor.id}>
+                        <Checkbox
+                          name="members"
+                          value={actor.id}
+                          label={actor.display_name}
+                          description={`@${actor.username} · ${accountTypeLabels[accountTypeOf(actor)]}`}
+                        />
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </>
             )}
           </fieldset>
 
