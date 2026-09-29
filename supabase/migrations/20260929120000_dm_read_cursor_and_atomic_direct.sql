@@ -240,5 +240,7 @@ $$;
 
 grant execute on function public.dm_mark_read(uuid, timestamptz, uuid) to authenticated;
 
+drop index if exists public.dm_messages_conversa_data_idx;
+
 create index dm_messages_conversa_cursor_idx
   on public.dm_messages (conversation_id, created_at desc, id desc);
