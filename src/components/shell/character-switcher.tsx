@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, LogOut, Settings, Shield, User } from "lucide-react";
-import { setActiveActorAction, signOutAction } from "@/app/actions/auth";
+import { signOutAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp, Handle } from "@/components/ui/account-type";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/menu";
@@ -46,10 +46,9 @@ export function CharacterSwitcher({
 
   function switchTo(actorId: string, close: () => void) {
     close();
-    setActiveActor(actorId);
     waitTransition(async () => {
-      await setActiveActorAction(actorId);
-      router.refresh();
+      const allowed = await setActiveActor(actorId);
+      if (allowed) router.refresh();
     });
   }
 
