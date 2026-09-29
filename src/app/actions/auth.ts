@@ -125,7 +125,7 @@ export async function updatePasswordAction(_prev: ActionState, formData: FormDat
 }
 
 /** Troca a identidade com quem se está publicando. */
-export async function setActiveActorAction(actorId: string): Promise<void> {
+export async function setActiveActorAction(actorId: string): Promise<boolean> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -137,17 +137,18 @@ export async function setActiveActorAction(actorId: string): Promise<void> {
   // é falso, a identidade não entra no cookie e nada muda na interface.
   const { data: allowed } = await supabase.rpc("can_manage_actor", { target: actorId });
 
-  if (allowed) {
-    const cookieStore = await cookies();
-    cookieStore.set(ACTIVE_ACTOR_COOKIE, actorId, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365,
-    });
-  }
+  if (!allowed) return false;
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_ACTOR_COOKIE, actorId, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
+  });
 
   revalidatePath("/", "layout");
+  return true;
 }
 
 /** Mensagens do Auth em português, sem vazar detalhes internos. */
