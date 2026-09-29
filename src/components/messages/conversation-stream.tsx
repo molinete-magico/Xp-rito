@@ -13,9 +13,9 @@ import {
   clearConversationAction,
   hideConversationAction,
   markConversationReadAction,
+  sendMessageAction,
 } from "@/app/actions/messages";
 import { formatMessageCursor, loadConversation, MESSAGE_PAGE_SIZE } from "@/lib/data/messages";
-import { sendMessageAction } from "@/app/actions/messages";
 import { idleState } from "@/lib/validation/schemas";
 import { fullTimestamp, relativeTime } from "@/lib/format/datetime";
 import { dmSpeakerCandidates } from "@/lib/data/identities";
