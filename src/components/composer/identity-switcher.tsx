@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
-import { setActiveActorAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp } from "@/components/ui/account-type";
 import { useSession } from "@/components/shell/session-provider";
@@ -37,10 +36,9 @@ export function IdentitySwitcher({
 
   function choose(actorId: string) {
     setOpen(false);
-    setActiveActor(actorId);
     startTransition(async () => {
-      await setActiveActorAction(actorId);
-      router.refresh();
+      const allowed = await setActiveActor(actorId);
+      if (allowed) router.refresh();
     });
   }
 
