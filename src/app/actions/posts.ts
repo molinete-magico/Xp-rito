@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewer } from "@/lib/session";
-import { createPostSchema, replySchema, fieldErrors, type ActionState } from "@/lib/validation/schemas";
+import { createPostSchema, editPostSchema, replySchema, fieldErrors, type ActionState } from "@/lib/validation/schemas";
 
 /**
  * Publicações e interações.
@@ -73,6 +73,25 @@ export async function replyAction(_prev: ActionState, formData: FormData): Promi
   });
 
   if (error) return { ok: false, message: describePostError(error.message) };
+
+  revalidatePath(`/post/${parsed.data.postId}`);
+  revalidateFeed();
+  return { ok: true };
+}
+
+export async function updatePostAction(postId: string, content: string): Promise<{ ok: boolean; error?: string }> {
+  await requireViewer();
+
+  const parsed = editPostSchema.safeParse({ postId, content });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Texto inválido." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("posts")
+    .update({ content: parsed.data.content })
+    .eq("id", parsed.data.postId);
+
+  if (error) return { ok: false, error: describePostError(error.message) };
 
   revalidatePath(`/post/${parsed.data.postId}`);
   revalidateFeed();
