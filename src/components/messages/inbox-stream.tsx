@@ -5,6 +5,7 @@ import { useSession } from "@/components/shell/session-provider";
 import { useDmSignal } from "@/components/shell/dm-unread-provider";
 import { ConversationRow } from "@/components/messages/conversation-row";
 import { NewGroupButton } from "@/components/messages/new-group-button";
+import { NewMessageButton } from "@/components/messages/new-message-button";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui/empty-state";
 import { loadInbox } from "@/lib/data/messages";
 import type { ConversationCard } from "@/lib/types";
@@ -95,12 +96,23 @@ export function InboxStream() {
 
   if (conversations && conversations.length === 0) {
     // O botão de grupo fica no estado vazio: é a única forma de começar.
-    return <EmptyState title="Nenhuma conversa ainda" action={<NewGroupButton />} />;
+    return (
+      <EmptyState
+        title="Nenhuma conversa ainda"
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <NewMessageButton />
+            <NewGroupButton />
+          </div>
+        }
+      />
+    );
   }
 
   return (
     <div>
-      <div className="flex justify-end border-b border-line px-4 py-2">
+      <div className="flex justify-end gap-2 border-b border-line px-4 py-2">
+        <NewMessageButton />
         <NewGroupButton iconOnly />
       </div>
 
