@@ -45,6 +45,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [newMessageCount, setNewMessageCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const scrollAdjustment = useRef<{ height: number; top: number } | null>(null);
@@ -64,10 +65,10 @@ export function ConversationStream({ conversationId }: { conversationId: string 
    * ficasse para trás, a navegação mentiria.
    */
   const fetchAndMarkRead = useCallback(
-    async (isCurrent: () => boolean) => {
+    async (isCurrent: () => boolean, shouldMarkRead = true) => {
       if (!client || !viewer) return null;
       const view = await loadConversation(client, viewer, conversationId);
-      if (view && isCurrent()) {
+      if (view && isCurrent() && shouldMarkRead) {
         const lastVisible = view.messages.at(-1);
         if (lastVisible) {
           void markConversationReadAction(
@@ -115,11 +116,14 @@ export function ConversationStream({ conversationId }: { conversationId: string 
           filter: `conversation_id=eq.${conversationId}`,
         },
         () => {
-          void fetchAndMarkRead(() => true)
+          const shouldMarkRead = nearBottom.current;
+          void fetchAndMarkRead(() => true, shouldMarkRead)
             .then((view) => {
               if (!view) return;
               setNotFound(false);
               setConversation(view);
+              if (shouldMarkRead) setNewMessageCount(0);
+              else setNewMessageCount((count) => count + 1);
             })
             .catch(() => {
               // Uma falha momentânea não pode apagar o histórico que já está na tela.
@@ -369,12 +373,38 @@ export function ConversationStream({ conversationId }: { conversationId: string 
       ) : null}
 
       <div
-        className="flex-1 overflow-y-auto"
+        className="relative flex-1 overflow-y-auto"
         onScroll={(event) => {
           const element = event.currentTarget;
+          const wasNearBottom = nearBottom.current;
           nearBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+
+          if (!wasNearBottom && nearBottom.current && newMessageCount > 0) {
+            void fetchAndMarkRead(() => true, true).then((view) => {
+              if (!view) return;
+              setConversation(view);
+              setNewMessageCount(0);
+            });
+          }
         }}
       >
+        {newMessageCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              nearBottom.current = true;
+              bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+              void fetchAndMarkRead(() => true, true).then((view) => {
+                if (!view) return;
+                setConversation(view);
+                setNewMessageCount(0);
+              });
+            }}
+            className="sticky top-3 z-10 mx-auto block border border-line bg-surface px-3 py-1.5 text-xs text-ink shadow-sm motion-reduce:scroll-auto"
+          >
+            ↓ {newMessageCount} {newMessageCount === 1 ? "nova mensagem" : "novas mensagens"}
+          </button>
+        ) : null}
         {conversation.hasMore ? (
           <div className="px-4 py-3 text-center">
             <button
