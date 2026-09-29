@@ -29,7 +29,7 @@ export function InboxStream() {
   const reload = useCallback(async () => {
     if (!client || !viewer) return;
     try {
-      const list = await loadInbox(client, viewer);
+      const list = await loadInbox(client, viewer, viewer.isGm ? 200 : 50);
       setError(null);
       setConversations(list);
     } catch (cause) {
@@ -41,7 +41,7 @@ export function InboxStream() {
     if (!client || !viewer) return;
     let cancelled = false;
 
-    void loadInbox(client, viewer)
+    void loadInbox(client, viewer, viewer.isGm ? 200 : 50)
       .then((list) => {
         if (cancelled) return;
         setError(null);
@@ -62,7 +62,7 @@ export function InboxStream() {
     if (signal === 0 || !client || !viewer) return;
     let cancelled = false;
 
-    void loadInbox(client, viewer)
+    void loadInbox(client, viewer, viewer.isGm ? 200 : 50)
       .then((list) => {
         if (!cancelled) setConversations(list);
       })
