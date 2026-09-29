@@ -191,6 +191,37 @@ begin
 end;
 $$;
 
+-- Depois de limpar, a conversa continua existindo: o marcador temporal volta
+-- para a criação da conversa, o preview fica naturalmente nulo e o unread zera.
+create or replace function public.dm_clear(target uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if not exists (
+    select 1
+    from public.dm_participants p
+    where p.conversation_id = target
+      and p.actor_id in (
+        select a.id
+        from public.actors a
+        join public.characters c on c.id = a.character_id
+        where c.owner_id = auth.uid()
+      )
+  ) then
+    raise exception 'Você não participa dessa conversa';
+  end if;
+
+  delete from public.dm_messages where conversation_id = target;
+
+  update public.dm_conversations c
+  set last_message_at = c.created_at
+  where c.id = target;
+end;
+$;
+
 -- Get-or-create atômico. A unique(direct_key) é a autoridade contra dois
 -- pedidos simultâneos; ON CONFLICT evita duplicate key e devolve a conversa
 -- vencedora. Os participantes também usam ON CONFLICT para o caso existente.
