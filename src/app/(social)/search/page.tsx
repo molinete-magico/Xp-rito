@@ -84,7 +84,7 @@ export default async function SearchPage({
 
   return (
     <>
-      <div className="border-b border-line px-4 py-3">
+      <div className="interface-header">
         <h1 className="font-display text-lg text-ink">Buscar</h1>
         <p className="mt-0.5 text-xs text-ink-3">
           Encontre personagens, NPCs e organizações pelo nome ou pelo @.

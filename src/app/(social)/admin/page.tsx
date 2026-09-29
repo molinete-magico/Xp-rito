@@ -75,7 +75,7 @@ export default async function AdminPage() {
   const players = ((playersResult.data ?? []) as PlayerSelectItem[]).filter((row) => row.id);
 
   return (
-    <div className="px-4 py-5">
+    <div className="px-4 py-5 lg:px-5 xl:px-6 2xl:px-8">
       <header className="border-b border-line pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -118,7 +118,7 @@ export default async function AdminPage() {
         <h2 id="secao-npcs" className="label mb-3 text-ink-3">
           Personagens sem dono (NPC)
         </h2>
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="order-2 md:order-1">
             <NpcList npcs={npcs} players={players} />
           </div>
