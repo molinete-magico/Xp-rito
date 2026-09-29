@@ -22,7 +22,7 @@ export function PostMedia({
   if (media.length === 1) {
     return (
       <div className={cn("mt-3", className)}>
-        <MediaFigure item={media[0]} priority className="max-h-[32rem]" />
+        <MediaFigure item={media[0]} priority />
       </div>
     );
   }
@@ -77,7 +77,7 @@ function MediaFigure({
           className="object-contain"
         />
       ) : (
-        <div className="relative h-full w-full" style={{ aspectRatio: String(ratio) }}>
+        <div className="relative h-auto max-h-[32rem] w-full overflow-hidden" style={{ aspectRatio: String(ratio) }}>
           <Image
             src={src}
             alt={item.alt_text}
