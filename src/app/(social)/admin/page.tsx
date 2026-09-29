@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireViewer } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { accountTypeLabels, accountTypeOf } from "@/lib/site";
 import {
   NpcCreateForm,
   OrganizationCreateForm,
@@ -23,6 +24,8 @@ import {
 export default async function AdminPage() {
   const viewer = await requireViewer();
   if (!viewer.isGm) redirect("/home");
+
+  const activeIdentity = viewer.identities.find((actor) => actor.id === viewer.activeActorId) ?? null;
 
   const supabase = await createClient();
   const [npcResult, orgResult, playerCharsResult, playersResult] = await Promise.all([
@@ -82,6 +85,12 @@ export default async function AdminPage() {
               Administre NPCs, personagens e organizações sem precisar sair da rede.
               As ações abaixo alteram a mesa; mensagens privadas continuam seguindo as regras de identidade e participação.
             </p>
+            {activeIdentity ? (
+              <p className="mt-2 text-xs text-ink-3">
+                Identidade ativa: <span className="text-ink-2">{activeIdentity.display_name}</span>
+                {" · "}{accountTypeLabels[accountTypeOf(activeIdentity)]}
+              </p>
+            ) : null}
           </div>
           <Link
             href="/messages"
@@ -97,6 +106,12 @@ export default async function AdminPage() {
           <SummaryCard label="Organizações" value={orgs.length} />
           <SummaryCard label="Jogadores" value={players.length} />
         </dl>
+        <nav aria-label="Atalhos do painel" className="mt-4 flex flex-wrap gap-1.5">
+          <a href="#secao-npcs" className="border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-sunken">NPCs</a>
+          <a href="#secao-jogadores" className="border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-sunken">Personagens</a>
+          <a href="#secao-orgs" className="border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-sunken">Organizações</a>
+          <Link href="/messages" className="border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-sunken">Mensagens</Link>
+        </nav>
       </header>
 
       <section aria-labelledby="secao-npcs" className="mt-6">
