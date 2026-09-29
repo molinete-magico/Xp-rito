@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SideNav, BottomNav } from "@/components/shell/navigation";
 import { CharacterSwitcher } from "@/components/shell/character-switcher";
 import { SidePanel } from "@/components/shell/side-panel";
@@ -17,7 +18,9 @@ import { site } from "@/lib/site";
  * descoberta são resolvidos aqui no navegador, com o mesmo RLS do servidor.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { viewer, isLoading } = useSession();
+  const isMessagesRoute = pathname === "/messages" || pathname.startsWith("/messages/");
 
   if (!isLoading && !viewer) return null;
 
@@ -52,18 +55,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </header>
 
-          <div className="mx-auto flex w-full max-w-[1120px]">
+          <div className={isMessagesRoute ? "flex w-full" : "mx-auto flex w-full max-w-[1120px]"}>
             <aside className="sticky top-0 hidden h-dvh w-[240px] shrink-0 flex-col border-r border-line px-3 py-4 lg:flex xl:w-[264px]">
               <SideNav identities={identities} activeActorId={activeActorId} isGm={isGm} />
             </aside>
 
-            <main id="conteudo" className="min-w-0 flex-1 border-line pb-20 lg:border-x lg:pb-0">
+            <main
+              id="conteudo"
+              className="min-w-0 flex-1 border-line pb-20 lg:border-x lg:pb-0"
+            >
               {children}
             </main>
 
-            <aside className="sticky top-0 hidden h-dvh w-[320px] shrink-0 overflow-y-auto py-4 pl-5 lg:block">
-              <SidePanel />
-            </aside>
+            {!isMessagesRoute ? (
+              <aside className="sticky top-0 hidden h-dvh w-[320px] shrink-0 overflow-y-auto py-4 pl-5 lg:block">
+                <SidePanel />
+              </aside>
+            ) : null}
           </div>
 
           <BottomNav identities={identities} activeActorId={activeActorId} />
