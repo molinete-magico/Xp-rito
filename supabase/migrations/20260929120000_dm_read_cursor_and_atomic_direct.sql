@@ -198,7 +198,7 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   if not exists (
     select 1
@@ -220,7 +220,7 @@ begin
   set last_message_at = c.created_at
   where c.id = target;
 end;
-$;
+$$;
 
 -- Get-or-create atômico. A unique(direct_key) é a autoridade contra dois
 -- pedidos simultâneos; ON CONFLICT evita duplicate key e devolve a conversa
