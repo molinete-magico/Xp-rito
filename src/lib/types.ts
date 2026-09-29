@@ -164,6 +164,8 @@ export interface ActorProfile extends ActorSummary {
   };
   viewer: {
     isSelf: boolean;
+    /** Uma das identidades de quem olha. Para o Mestre, o próprio NPC. */
+    isOwnIdentity: boolean;
     isFollowing: boolean;
     /** Pode editar: dono do personagem ou Mestre. */
     canEdit: boolean;

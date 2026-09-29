@@ -23,8 +23,18 @@ import type { ActorSummary } from "@/lib/types";
  * Quem tem mais de um personagem com quem falar escolhe também de quem é a
  * conversa: o Mestre cria o grupo como o próprio personagem ou como um NPC da
  * mesa, que passa a valer como participante.
+ *
+ * `presetVoiceId` já vem com o NPC escolhido: o perfil de um NPC do Mestre já é
+ * sobre aquela cena, e o diálogo abre falando dele em vez de obrigar a Procurar
+ * o nome num select.
  */
-export function NewGroupButton({ iconOnly = false }: { iconOnly?: boolean }) {
+export function NewGroupButton({
+  iconOnly = false,
+  presetVoiceId,
+}: {
+  iconOnly?: boolean;
+  presetVoiceId?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -41,17 +51,23 @@ export function NewGroupButton({ iconOnly = false }: { iconOnly?: boolean }) {
     );
   }
 
-  return <NewGroupDialog onClose={() => setOpen(false)} />;
+  return <NewGroupDialog onClose={() => setOpen(false)} presetVoiceId={presetVoiceId} />;
 }
 
-function NewGroupDialog({ onClose }: { onClose: () => void }) {
+function NewGroupDialog({
+  onClose,
+  presetVoiceId,
+}: {
+  onClose: () => void;
+  presetVoiceId?: string;
+}) {
   const router = useRouter();
   const { viewer, client } = useSession();
   const [state, formAction, pending] = useActionState(createGroupAction, idleState);
   const [candidates, setCandidates] = useState<ActorSummary[] | null>(null);
 
   const voices = viewer ? dmVoiceIdentities(viewer) : [];
-  const [senderId, setSenderId] = useState<string | null>(null);
+  const [senderId, setSenderId] = useState<string | null>(presetVoiceId ?? null);
   const sender = viewer ? dmSenderChoice(viewer, senderId) : null;
 
   useEffect(() => {

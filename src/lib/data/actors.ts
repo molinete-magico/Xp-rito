@@ -90,6 +90,11 @@ async function toProfile(client: DataClient, viewer: Viewer, row: ActorRow): Pro
     },
     viewer: {
       isSelf: selfId === row.id,
+      // `isSelf` compara com o personagem aberto agora; este compara com todas as
+      // identidades. O Mestre vendo o perfil do próprio NPC tem `isSelf` falso e
+      // `isOwnIdentity` verdadeiro, e é a diferença entre "posso mandar mensagem
+      // para ele" e "eu sou ele".
+      isOwnIdentity: viewer.identities.some((identity) => identity.id === row.id),
       isFollowing: Boolean(followingRow.data),
       canEdit: Boolean(editable) && selfId !== null,
     },

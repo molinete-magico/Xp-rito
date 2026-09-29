@@ -121,7 +121,7 @@ export async function loadConversation(
     id: conversation.id,
     kind: conversation.kind,
     title: titleOf(conversation, participants, mine),
-    subtitle: subtitleOf(conversation, participants),
+    subtitle: subtitleOf(conversation, participants, mine),
     last_message_at: conversation.last_message_at,
     preview: messages[0]?.content ?? null,
     participants,
@@ -225,7 +225,7 @@ function actorsOf(rows: { actor: Parameters<typeof toActorCard>[0] | null }[]): 
  * Conversa direta mostra o nome de quem é o outro; grupo mostra o nome que quem
  * abriu deu. Num grupo também vale a lista de quem participa, que o subtítulo usa.
  */
-function titleOf(
+export function titleOf(
   conversation: { kind: "direct" | "group"; title: string | null },
   participants: ActorSummary[],
   mine: Set<string>,
@@ -233,21 +233,39 @@ function titleOf(
   if (conversation.kind === "group") return conversation.title ?? "Conversa";
 
   const others = participants.filter((actor) => !mine.has(actor.id));
-  if (others.length === 0) return "Conversa direta";
-  if (others.length === 1) return others[0].display_name;
-  return others.map((actor) => actor.display_name).join(", ");
+  const other =
+    others.length === 0
+      ? "Conversa direta"
+      : others.length === 1
+        ? others[0].display_name
+        : others.map((actor) => actor.display_name).join(", ");
+
+  // O Mestre entra na mesma conversa por vários personagens, e a DM direta com
+  // um deles fica idêntica à de qualquer jogador: a linha da caixa não dizia com
+  // quem se está falando de verdade. O NPC que ele está usando entra entre
+  // parênteses. Só o NPC, e só para quem o controla — uma DM entre jogadores
+  // continua mostrando só o nome do outro, como sempre.
+  const npcVoices = participants.filter((actor) => mine.has(actor.id) && actor.is_npc === true);
+  if (npcVoices.length === 0) return other;
+  return `${other} (${npcVoices.map((actor) => actor.display_name).join(", ")})`;
 }
 
-function subtitleOf(
+export function subtitleOf(
   conversation: { kind: "direct" | "group" },
   participants: ActorSummary[],
+  mine: Set<string>,
 ): string {
   if (conversation.kind === "group") {
     if (participants.length === 0) return "Só você";
     const plural = participants.length === 1 ? "participante" : "participantes";
     return `${participants.map((actor) => actor.display_name).join(", ")} · ${participants.length} ${plural}`;
   }
-  return participants.map((actor) => `@${actor.username}`).join(" ");
+  // Na DM direta o @ de quem lê não diz nada: ele sabe o próprio, e o do Mestre
+  // era justamente o que embaralhava, porque "@Madn3S5 @henri" não diz qual dos
+  // dois é ele. Fica o do outro, que é o que a tela precisa dizer.
+  const others = participants.filter((actor) => !mine.has(actor.id));
+  if (others.length === 0) return "";
+  return others.map((actor) => `@${actor.username}`).join(" ");
 }
 
 const unknownActor: Parameters<typeof toActorCard>[0] = {

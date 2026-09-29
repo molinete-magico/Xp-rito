@@ -5,6 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp, Handle } from "@/components/ui/account-type";
 import { FollowButton, Stat } from "@/components/profile/follow-button";
 import { MessageButton } from "@/components/messages/message-button";
+import { NewGroupButton } from "@/components/messages/new-group-button";
 import { ButtonLink } from "@/components/ui/button";
 import { accountTypeOf } from "@/lib/site";
 import type { ActorProfile } from "@/lib/types";
@@ -69,9 +70,21 @@ export function ProfileHeader({
               </ButtonLink>
             ) : null}
 
+            {/*
+              A DM direta com uma identidade própria não existe: o banco recusa
+              "Não se abre conversa consigo mesmo", e o botão só mostrava o erro
+              em vermelho. O Mestre caía nisso no perfil de cada NPC dele, que é
+              onde ele vai justamente para montar cena. No lugar do botão morto
+              entra a conversa em grupo já aberta com o NPC escolhido como voz:
+              é o caminho que leva o NPC para a mesa.
+            */}
             {profile.viewer.isSelf ? null : (
               <>
-                <MessageButton targetActorId={profile.id} />
+                {profile.viewer.isOwnIdentity ? (
+                  <NewGroupButton presetVoiceId={profile.id} />
+                ) : (
+                  <MessageButton targetActorId={profile.id} />
+                )}
                 <FollowButton
                   targetActorId={profile.id}
                   initialFollowing={profile.viewer.isFollowing}
