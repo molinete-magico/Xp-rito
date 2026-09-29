@@ -154,6 +154,7 @@ export type DmParticipantRow = {
   actor_id: string;
   joined_at: string;
   last_read_at: string;
+  last_read_message_id: string | null;
   hidden: boolean;
 }
 
@@ -410,7 +411,7 @@ export type Database = {
       dm_participants: Table<
         DmParticipantRow,
         { conversation_id: string; actor_id: string; hidden?: boolean },
-        { last_read_at?: string; hidden?: boolean },
+        { last_read_at?: string; last_read_message_id?: string | null; hidden?: boolean },
         [
           {
             foreignKeyName: "dm_participants_actor_id_fkey";
@@ -488,7 +489,10 @@ export type Database = {
           participants: Json;
         }[];
       };
-      dm_mark_read: { Args: { target: string }; Returns: void };
+      dm_mark_read: {
+        Args: { target: string; through_created_at: string; through_message_id: string };
+        Returns: void;
+      };
       dm_hide: { Args: { target: string }; Returns: void };
       dm_clear: { Args: { target: string }; Returns: void };
     };
