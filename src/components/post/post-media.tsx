@@ -67,23 +67,27 @@ function MediaFigure({
 
   return (
     <figure className={cn("relative overflow-hidden bg-sunken", className)}>
-      <div style={compact ? undefined : { aspectRatio: String(ratio) }}>
+      {compact ? (
         <Image
           src={src}
           alt={item.alt_text}
-          fill={!compact}
-          sizes={
-            compact
-              ? "(min-width: 1024px) 300px, 50vw"
-              : "(min-width: 1024px) 600px, 100vw"
-          }
+          fill
+          sizes="(min-width: 1024px) 300px, 50vw"
           priority={priority}
-          className={cn(
-            compact ? "h-full w-full" : "object-cover",
-            compact && "object-cover",
-          )}
+          className="object-contain"
         />
-      </div>
+      ) : (
+        <div className="relative h-full w-full" style={{ aspectRatio: String(ratio) }}>
+          <Image
+            src={src}
+            alt={item.alt_text}
+            fill
+            sizes="(min-width: 1024px) 600px, 100vw"
+            priority={priority}
+            className="object-contain"
+          />
+        </div>
+      )}
     </figure>
   );
 }
