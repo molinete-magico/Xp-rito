@@ -7,6 +7,7 @@ import { idleState } from "@/lib/validation/schemas";
 import { buttonClass } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Select } from "@/components/ui/field";
+import { accountTypeLabels, accountTypeOf } from "@/lib/site";
 import type { ActorSummary } from "@/lib/types";
 
 const MAX = 4000;
