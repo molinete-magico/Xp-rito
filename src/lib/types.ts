@@ -59,7 +59,7 @@ export interface ViewerInteraction {
   liked: boolean;
   reposted: boolean;
   /** O autor (ou o Mestre) pode apagar. */
-  canDelete: boolean;
+  canDelete: boolean;\n  canEdit: boolean;
 }
 
 export interface PostCard {
