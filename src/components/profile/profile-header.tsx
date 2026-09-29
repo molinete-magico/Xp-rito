@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Settings } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp, Handle } from "@/components/ui/account-type";
@@ -96,14 +97,34 @@ export function ProfileHeader({
             </p>
           ) : null}
 
-          <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
             <Stat value={profile.stats.posts} label="publicações" />
-            <Stat value={profile.stats.followers} label="seguidores" />
-            <Stat value={profile.stats.following} label="seguindo" />
+            <LinkStat
+              href={`/profile/${profile.username}/followers`}
+              value={profile.stats.followers}
+              label="seguidores"
+            />
+            <LinkStat
+              href={`/profile/${profile.username}/following`}
+              value={profile.stats.following}
+              label="seguindo"
+            />
             <Stat value={profile.stats.likesReceived} label="curtidas" />
-          </dl>
+          </div>
         </div>
       </div>
     </header>
+  );
+}
+
+/** Contador que abre a lista correspondente. */
+function LinkStat({ href, value, label }: { href: string; value: number; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="rounded-xs text-ink-3 transition-colors hover:text-ink hover:underline"
+    >
+      <Stat value={value} label={label} />
+    </Link>
   );
 }

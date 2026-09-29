@@ -163,3 +163,58 @@ export async function loadPopularHashtags(
 
   return [...counts.values()].sort((a, b) => b.posts - a.posts).slice(0, limit);
 }
+export type ConnectionKind = "followers" | "following";
+
+export interface Connection {
+  actor: ActorSummary;
+  /** O leitor já segue esta conta. */
+  following: boolean;
+}
+
+/**
+ * Conexões de uma conta: quem a segue, ou quem ela segue.
+ *
+ * Duas consultas, sem N+1: a lista vem de um embed de `follows` para `actors` e
+ * o que o leitor segue dessa lista vem de outra. As duas colunas de `follows`
+ * viram o mesmo embed trocando o nome da FK.
+ */
+export async function loadConnections(
+  client: DataClient,
+  viewer: Viewer,
+  actorId: string,
+  kind: ConnectionKind,
+  limit = 50,
+): Promise<Connection[]> {
+  const byFollowers = kind === "followers";
+  const { data } = await client
+    .from("follows")
+    .select(
+      byFollowers
+        ? `follower_id, actor:actors!follows_follower_id_fkey(${ACTOR_FIELDS})`
+        : `following_id, actor:actors!follows_following_id_fkey(${ACTOR_FIELDS})`,
+    )
+    .eq(byFollowers ? "following_id" : "follower_id", actorId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const actors = ((data ?? []) as unknown as { actor: ActorRow | null }[])
+    .map((row) => row.actor)
+    .filter((row): row is ActorRow => Boolean(row))
+    .map((row) => toActorCard(row));
+
+  if (actors.length === 0 || !viewer.activeActorId) {
+    return actors.map((actor) => ({ actor, following: false }));
+  }
+
+  const { data: mine } = await client
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", viewer.activeActorId)
+    .in(
+      "following_id",
+      actors.map((actor) => actor.id),
+    );
+
+  const seen = new Set(((mine ?? []) as { following_id: string }[]).map((row) => row.following_id));
+  return actors.map((actor) => ({ actor, following: seen.has(actor.id) }));
+}

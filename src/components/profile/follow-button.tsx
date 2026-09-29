@@ -17,10 +17,17 @@ export function FollowButton({
   targetActorId,
   initialFollowing,
   initialFollowers,
+  showCount = true,
+  onChange,
 }: {
   targetActorId: string;
   initialFollowing: boolean;
+  /** Contagem exibida ao lado do botão; ignorada quando `showCount` é falso. */
   initialFollowers: number;
+  /** Listas de conexões trazem o botão sozinho, sem o contador. */
+  showCount?: boolean;
+  /** A lista de conexões usa para tirar a linha quando o vínculo é desfeito. */
+  onChange?: (following: boolean) => void;
 }) {
   const router = useRouter();
   const [following, setFollowing] = useState(initialFollowing);
@@ -42,6 +49,7 @@ export function FollowButton({
         setError(result.error);
         return;
       }
+      onChange?.(next);
       router.refresh();
     });
   }
@@ -58,15 +66,17 @@ export function FollowButton({
         {pending ? "…" : following ? "Seguindo" : "Seguir"}
       </button>
 
-      <span className="text-xs text-ink-3 tabular-nums" aria-live="polite">
-        {error ? (
-          <span role="alert" className="text-danger">
-            {error}
-          </span>
-        ) : (
-          `${count} ${count === 1 ? "seguidor" : "seguidores"}`
-        )}
-      </span>
+      {showCount || error ? (
+        <span className="text-xs text-ink-3 tabular-nums" aria-live="polite">
+          {error ? (
+            <span role="alert" className="text-danger">
+              {error}
+            </span>
+          ) : (
+            `${count} ${count === 1 ? "seguidor" : "seguidores"}`
+          )}
+        </span>
+      ) : null}
     </div>
   );
 }
