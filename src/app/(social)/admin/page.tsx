@@ -3,9 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   NpcCreateForm,
-  NpcRow,
   OrganizationCreateForm,
-  OrganizationRow,
   PlayerCharacterList,
   OrganizationList,
   NpcList,
