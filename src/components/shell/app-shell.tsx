@@ -55,20 +55,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </header>
 
-          <div className={isMessagesRoute ? "flex w-full" : "mx-auto flex w-full max-w-[1120px]"}>
-            <aside className="sticky top-0 hidden h-dvh w-[240px] shrink-0 flex-col border-r border-line px-3 py-4 lg:flex xl:w-[264px]">
+          <div className="flex min-h-[calc(100dvh-1px)] w-full">
+            <aside className="sticky top-0 hidden h-dvh w-[240px] shrink-0 flex-col border-r border-line px-3 py-4 lg:flex xl:w-[264px] 2xl:w-[280px]">
               <SideNav identities={identities} activeActorId={activeActorId} isGm={isGm} />
             </aside>
 
             <main
               id="conteudo"
-              className="min-w-0 flex-1 border-line pb-20 lg:border-x lg:pb-0"
+              className="min-w-0 flex-1 border-line pb-20 lg:border-r lg:pb-0"
             >
               {children}
             </main>
 
             {!isMessagesRoute ? (
-              <aside className="sticky top-0 hidden h-dvh w-[320px] shrink-0 overflow-y-auto py-4 pl-5 lg:block">
+              <aside className="sticky top-0 hidden h-dvh w-[320px] shrink-0 overflow-y-auto border-l border-line py-4 pl-5 pr-4 lg:block 2xl:w-[360px] 2xl:pl-6">
                 <SidePanel />
               </aside>
             ) : null}
