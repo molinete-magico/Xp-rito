@@ -10,8 +10,10 @@ import {
   MessageCircle,
   MoreHorizontal,
   Repeat2,
+  Save,
   Share2,
   Trash2,
+  X,
 } from "lucide-react";
 import { toggleLikeAction, toggleRepostAction, deletePostAction, updatePostAction } from "@/app/actions/posts";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
@@ -31,11 +33,13 @@ export function PostActions({
   stats,
   viewer,
   username,
+  content,
 }: {
   postId: string;
   stats: PostStats;
   viewer: ViewerInteraction;
   username: string;
+  content: string | null;
 }) {
   const [liked, setLiked] = useState(viewer.liked);
   const [reposted, setReposted] = useState(viewer.reposted);
