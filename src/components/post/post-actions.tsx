@@ -132,7 +132,33 @@ export function PostActions({
   }
 
   return (
-    <div className="mt-3 flex items-center gap-1">
+    <div className="mt-3 space-y-2">
+      {editing ? (
+        <div className="space-y-2">
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            maxLength={1000}
+            rows={4}
+            autoFocus
+            className="w-full resize-y rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink-3"
+            aria-label="Editar publicação"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-ink-3">{draft.length}/1000</span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setDraft(content ?? ""); setEditing(false); }} className="inline-flex h-8 items-center gap-1 rounded-xs px-2 text-xs text-ink-3 hover:bg-sunken hover:text-ink-2">
+                <X className="h-4 w-4" /> Cancelar
+              </button>
+              <button type="button" onClick={() => void onSaveEdit()} disabled={pending || !draft.trim()} className="inline-flex h-8 items-center gap-1 rounded-xs bg-ink px-3 text-xs text-surface disabled:opacity-50">
+                <Save className="h-4 w-4" /> Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex items-center gap-1">
       <ActionLink href={`/post/${postId}`} label="Responder" count={stats.replies}>
         <MessageCircle aria-hidden="true" />
       </ActionLink>
@@ -184,6 +210,12 @@ export function PostActions({
                 <Copy aria-hidden="true" className="h-4 w-4" />
                 Copiar endereço
               </MenuItem>
+              {viewer.canEdit ? (
+                <MenuItem onSelect={() => { close(); setDraft(content ?? ""); setEditing(true); setError(null); }}>
+                  <Save aria-hidden="true" className="h-4 w-4" />
+                  Editar publicação
+                </MenuItem>
+              ) : null}
               <MenuSeparator />
               <MenuItem
                 destructive
@@ -213,6 +245,7 @@ export function PostActions({
       <span className="sr-only">
         Post de {username} com {stats.replies} respostas, {repostCount} reposts e {likeCount} curtidas.
       </span>
+      </div>
     </div>
   );
 }
