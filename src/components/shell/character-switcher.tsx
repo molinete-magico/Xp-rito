@@ -46,11 +46,11 @@ export function CharacterSwitcher({
   );
 
   function switchTo(actorId: string, close: () => void) {
-    close();
     setSwitchError(null);
     waitTransition(async () => {
       const allowed = await setActiveActor(actorId);
       if (allowed) {
+        close();
         router.refresh();
       } else {
         setSwitchError("Não foi possível trocar de identidade.");
