@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </header>
 
-          <div className="flex min-h-[calc(100dvh-1px)] w-full">
+          <div className="mx-auto flex min-h-[calc(100dvh-1px)] w-full max-w-[1440px] border-x border-line">
             <aside className="sticky top-0 hidden h-dvh w-[240px] shrink-0 flex-col border-r border-line px-3 py-4 lg:flex xl:w-[264px] 2xl:w-[280px]">
               <SideNav identities={identities} activeActorId={activeActorId} isGm={isGm} />
             </aside>
