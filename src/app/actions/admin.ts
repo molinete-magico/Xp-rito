@@ -81,15 +81,23 @@ export async function updateNpcAction(_prev: ActionState, formData: FormData): P
   return { ok: true, message: "NPC atualizado." };
 }
 
-export async function deleteNpcAction(formData: FormData): Promise<void> {
+export async function deleteNpcAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const viewer = await requireViewer();
-  if (!viewer.isGm) return;
+  if (!viewer.isGm) return { ok: false, message: "Só o Mestre administra a cidade." };
+
   const id = String(formData.get("characterId") ?? "");
-  if (!id) return;
+  if (!id) return { ok: false, message: "Faltou identificar o NPC." };
 
   const supabase = await createClient();
-  await supabase.from("characters").delete().eq("id", id).eq("is_npc", true);
+  const { error } = await supabase.from("characters").delete().eq("id", id).eq("is_npc", true);
+  if (error) return { ok: false, message: describeError(error.message) };
+
   revalidatePath("/admin");
+  revalidatePath("/home");
+  return { ok: true, message: "NPC apagado." };
 }
 
 /**
@@ -228,15 +236,23 @@ export async function updateOrganizationAction(
   return { ok: true, message: "Organização atualizada." };
 }
 
-export async function deleteOrganizationAction(formData: FormData): Promise<void> {
+export async function deleteOrganizationAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const viewer = await requireViewer();
-  if (!viewer.isGm) return;
+  if (!viewer.isGm) return { ok: false, message: "Só o Mestre administra a cidade." };
+
   const id = String(formData.get("organizationId") ?? "");
-  if (!id) return;
+  if (!id) return { ok: false, message: "Faltou identificar a organização." };
 
   const supabase = await createClient();
-  await supabase.from("organizations").delete().eq("id", id);
+  const { error } = await supabase.from("organizations").delete().eq("id", id);
+  if (error) return { ok: false, message: describeError(error.message) };
+
   revalidatePath("/admin");
+  revalidatePath("/home");
+  return { ok: true, message: "Organização apagada." };
 }
 
 function describeError(message: string): string {
