@@ -78,7 +78,8 @@ function NewMessageDialog({ onClose }: { onClose: () => void }) {
         return;
       }
       setError(null);
-      setResults((data ?? []).map(toActorCard));
+      const mine = new Set(viewer.identities.map((identity) => identity.id));
+      setResults((data ?? []).map(toActorCard).filter((actor) => !mine.has(actor.id)));
     }, 250);
 
     return () => window.clearTimeout(handle);
