@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
-import { setActiveActorAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp } from "@/components/ui/account-type";
 import { useSession } from "@/components/shell/session-provider";
@@ -30,17 +29,23 @@ export function IdentitySwitcher({
   const { setActiveActor } = useSession();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
 
   if (!active) return null;
 
   function choose(actorId: string) {
-    setOpen(false);
-    setActiveActor(actorId);
+    setSwitchError(null);
     startTransition(async () => {
-      await setActiveActorAction(actorId);
-      router.refresh();
+      const allowed = await setActiveActor(actorId);
+      if (allowed) {
+        setOpen(false);
+        router.refresh();
+      } else {
+        setSwitchError("Não foi possível trocar de identidade.");
+        setOpen(true);
+      }
     });
   }
 
@@ -65,6 +70,8 @@ export function IdentitySwitcher({
           <span className="block truncate font-mono text-[11px] text-ink-3">@{active.username}</span>
         </span>
       </button>
+
+      {switchError ? <p role="alert" className="mt-1 text-xs text-danger">{switchError}</p> : null}
 
       {open ? (
         <>

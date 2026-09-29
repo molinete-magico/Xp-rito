@@ -113,11 +113,21 @@ export async function createGroupAction(_prev: ActionState, formData: FormData):
   return { ok: true, conversationId: data };
 }
 
-export async function markConversationReadAction(conversationId: string): Promise<void> {
+export async function markConversationReadAction(
+  conversationId: string,
+  throughCreatedAt: string,
+  throughMessageId: string,
+): Promise<{ error?: string }> {
   await requireViewer();
   const supabase = await createClient();
-  await supabase.rpc("dm_mark_read", { target: conversationId });
+  const { error } = await supabase.rpc("dm_mark_read", {
+    target: conversationId,
+    through_created_at: throughCreatedAt,
+    through_message_id: throughMessageId,
+  });
+  if (error) return { error: "Não foi possível atualizar a leitura." };
   revalidateMessages(conversationId);
+  return {};
 }
 
 /** Some da minha caixa. O histórico dos outros participantes continua lá. */

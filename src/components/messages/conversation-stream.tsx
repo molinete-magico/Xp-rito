@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, MoreHorizontal, Trash2 } from "lucide-react";
 import { useSession } from "@/components/shell/session-provider";
-import { useDmRefreshUnread, useDmSignal } from "@/components/shell/dm-unread-provider";
+import { useDmRefreshUnread } from "@/components/shell/dm-unread-provider";
 import { MessageComposer } from "@/components/messages/message-composer";
 import { Avatar } from "@/components/ui/avatar";
 import { ErrorState, Spinner } from "@/components/ui/empty-state";
@@ -13,11 +13,14 @@ import {
   clearConversationAction,
   hideConversationAction,
   markConversationReadAction,
+  sendMessageAction,
 } from "@/app/actions/messages";
 import { formatMessageCursor, loadConversation, MESSAGE_PAGE_SIZE } from "@/lib/data/messages";
+import { idleState } from "@/lib/validation/schemas";
 import { fullTimestamp, relativeTime } from "@/lib/format/datetime";
 import { dmSpeakerCandidates } from "@/lib/data/identities";
 import { cn } from "@/lib/cn";
+import { Menu, MenuItem } from "@/components/ui/menu";
 import type { ActorSummary, ConversationView, MessageView } from "@/lib/types";
 
 /**
@@ -33,17 +36,21 @@ import type { ActorSummary, ConversationView, MessageView } from "@/lib/types";
 export function ConversationStream({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const { viewer, client, isLoading } = useSession();
-  const signal = useDmSignal();
   const refreshUnread = useDmRefreshUnread();
   const [conversation, setConversation] = useState<ConversationView | null>(null);
   const [inflight, setInflight] = useState<MessageView[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [newMessageCount, setNewMessageCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
+  const scrollAdjustment = useRef<{ height: number; top: number } | null>(null);
+  const clearCancelRef = useRef<HTMLButtonElement>(null);
 
   const reload = useCallback(async () => {
     if (!client || !viewer) return;
@@ -59,10 +66,19 @@ export function ConversationStream({ conversationId }: { conversationId: string 
    * ficasse para trás, a navegação mentiria.
    */
   const fetchAndMarkRead = useCallback(
-    async (isCurrent: () => boolean) => {
+    async (isCurrent: () => boolean, shouldMarkRead = true) => {
       if (!client || !viewer) return null;
       const view = await loadConversation(client, viewer, conversationId);
-      if (view && isCurrent()) void markConversationReadAction(conversationId).then(refreshUnread);
+      if (view && isCurrent() && shouldMarkRead) {
+        const lastVisible = view.messages.at(-1);
+        if (lastVisible) {
+          void markConversationReadAction(
+            conversationId,
+            lastVisible.created_at,
+            lastVisible.id,
+          ).then(refreshUnread);
+        }
+      }
       return view;
     },
     [client, viewer, conversationId, refreshUnread],
@@ -88,27 +104,67 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   }, [client, viewer, fetchAndMarkRead]);
 
   useEffect(() => {
-    if (signal === 0 || !client || !viewer) return;
-    let cancelled = false;
+    if (!client || !viewer) return;
 
-    (async () => {
-      const view = await fetchAndMarkRead(() => !cancelled);
-      if (cancelled || !view) return;
-      setNotFound(false);
-      setConversation(view);
-    })().catch(() => {
-      // Uma falha momentânea não pode apagar o histórico que já está na tela.
-    });
+    const channel = client
+      .channel(`dm-conversation:${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "dm_messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          const shouldMarkRead = nearBottom.current;
+          void fetchAndMarkRead(() => true, shouldMarkRead)
+            .then((view) => {
+              if (!view) return;
+              setNotFound(false);
+              setConversation(view);
+              if (shouldMarkRead) setNewMessageCount(0);
+              else setNewMessageCount((count) => count + 1);
+            })
+            .catch(() => {
+              // Uma falha momentânea não pode apagar o histórico que já está na tela.
+            });
+        },
+      )
+      .subscribe();
 
     return () => {
-      cancelled = true;
+      void client.removeChannel(channel);
     };
-  }, [signal, client, viewer, fetchAndMarkRead]);
+  }, [client, viewer, conversationId, fetchAndMarkRead]);
 
   const messageCount = (conversation?.messages.length ?? 0) + inflight.length;
   useEffect(() => {
     if (nearBottom.current) bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messageCount]);
+
+  useLayoutEffect(() => {
+    const adjustment = scrollAdjustment.current;
+    const scroller = scrollerRef.current;
+    if (!adjustment || !scroller) return;
+    scroller.scrollTop = adjustment.top + (scroller.scrollHeight - adjustment.height);
+    scrollAdjustment.current = null;
+  }, [conversation?.messages.length]);
+
+  useEffect(() => {
+    if (!clearConfirmOpen) return;
+    clearCancelRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setClearConfirmOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [clearConfirmOpen]);
 
   if (isLoading || !viewer) {
     return (
@@ -147,23 +203,35 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   async function loadOlder() {
     if (!client || !viewer || !conversation || conversation.messages.length === 0) return;
     const first = conversation.messages[0];
+    const scroller = bottomRef.current?.parentElement;
+    if (!scroller) return;
+
     setLoadingMore(true);
-    const older = await loadConversation(client, viewer, conversationId, {
-      before: formatMessageCursor(first.created_at, first.id),
-      limit: MESSAGE_PAGE_SIZE,
-    });
-    if (older) {
-      setConversation((current) =>
-        current
-          ? { ...current, messages: [...older.messages, ...current.messages], hasMore: older.hasMore }
-          : current,
-      );
+    const previousHeight = scroller.scrollHeight;
+    const previousTop = scroller.scrollTop;
+
+    try {
+      const older = await loadConversation(client, viewer, conversationId, {
+        before: formatMessageCursor(first.created_at, first.id),
+        limit: MESSAGE_PAGE_SIZE,
+      });
+
+      if (older) {
+        scrollAdjustment.current = { height: previousHeight, top: previousTop };
+        setConversation((current) =>
+          current
+            ? { ...current, messages: [...older.messages, ...current.messages], hasMore: older.hasMore }
+            : current,
+        );
+      }
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : "Não foi possível carregar mensagens anteriores.");
+    } finally {
+      setLoadingMore(false);
     }
-    setLoadingMore(false);
   }
 
   async function hide() {
-    setMenuOpen(false);
     const result = await hideConversationAction(conversationId);
     if (result.error) {
       setActionError(result.error);
@@ -175,12 +243,6 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   }
 
   async function clear() {
-    setMenuOpen(false);
-    const ok = window.confirm(
-      "Apagar todas as mensagens desta conversa? Isso vale para todos que participam.",
-    );
-    if (!ok) return;
-
     const result = await clearConversationAction(conversationId);
     if (result.error) {
       setActionError(result.error);
@@ -197,7 +259,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   const mineActors = new Set(speakers.map((speaker) => speaker.id));
 
   function addInflight(sender: ActorSummary, content: string) {
-    const id = `optimistic-${Date.now()}`;
+    const id = `optimistic-${crypto.randomUUID()}`;
     // A mensagem otimista sai do lado de quem escreve, e quem escreve é o
     // remetente escolhido agora — o mesmo que o formulário vai mandar.
     const message = optimisticMessage(sender, id, content, mineActors.has(sender.id));
@@ -207,11 +269,47 @@ export function ConversationStream({ conversationId }: { conversationId: string 
 
   function settleInflight(ok: boolean, optimisticId: string) {
     if (ok) {
-      setInflight([]);
+      setInflight((current) => current.filter((message) => message.id !== optimisticId));
       void reload();
       return;
     }
-    setInflight((current) => current.filter((message) => message.id !== optimisticId));
+    setInflight((current) =>
+      current.map((message) =>
+        message.id === optimisticId
+          ? { ...message, status: "failed", error: "Não foi possível enviar esta mensagem." }
+          : message,
+      ),
+    );
+  }
+
+  function retryInflight(message: MessageView) {
+    if (retryingId === message.id) return;
+    setRetryingId(message.id);
+    setInflight((current) =>
+      current.map((item) => item.id === message.id ? { ...item, status: "pending", error: undefined } : item),
+    );
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("conversationId", conversationId);
+      formData.set("senderActorId", message.author.id);
+      formData.set("content", message.content);
+
+      const result = await sendMessageAction(idleState, formData);
+      if (result.ok) {
+        setInflight((current) => current.filter((item) => item.id !== message.id));
+        void reload();
+      } else {
+        setInflight((current) =>
+          current.map((item) =>
+            item.id === message.id
+              ? { ...item, status: "failed", error: result.message ?? "Não foi possível enviar esta mensagem." }
+              : item,
+          ),
+        );
+      }
+      setRetryingId(null);
+    });
   }
 
   return (
@@ -230,37 +328,43 @@ export function ConversationStream({ conversationId }: { conversationId: string 
           <p className="truncate text-xs text-ink-3">{conversation.subtitle}</p>
         </div>
 
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            className="text-ink-3 hover:text-ink"
-            aria-label="Opções da conversa"
-            aria-expanded={menuOpen}
-          >
-            <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
-          </button>
-
-          {menuOpen ? (
-            <div className="absolute right-0 z-20 mt-1 w-56 border border-line bg-surface">
-              <button
-                type="button"
-                onClick={hide}
-                className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-sunken"
+        <Menu
+          label="Opções da conversa"
+          align="end"
+          trigger={(props) => (
+            <button
+              {...props}
+              type="button"
+              aria-label="Opções da conversa"
+              className="rounded-xs p-1.5 text-ink-3 hover:bg-sunken hover:text-ink"
+            >
+              <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
+            </button>
+          )}
+        >
+          {(close) => (
+            <>
+              <MenuItem
+                onSelect={() => {
+                  close();
+                  void hide();
+                }}
               >
                 Some da minha caixa
-              </button>
-              <button
-                type="button"
-                onClick={clear}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft"
+              </MenuItem>
+              <MenuItem
+                destructive
+                onSelect={() => {
+                  close();
+                  setClearConfirmOpen(true);
+                }}
               >
                 <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
                 Apagar para todos
-              </button>
-            </div>
-          ) : null}
-        </div>
+              </MenuItem>
+            </>
+          )}
+        </Menu>
       </header>
 
       {actionError ? (
@@ -270,12 +374,39 @@ export function ConversationStream({ conversationId }: { conversationId: string 
       ) : null}
 
       <div
-        className="flex-1 overflow-y-auto"
+        ref={scrollerRef}
+        className="relative flex-1 overflow-y-auto"
         onScroll={(event) => {
           const element = event.currentTarget;
+          const wasNearBottom = nearBottom.current;
           nearBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+
+          if (!wasNearBottom && nearBottom.current && newMessageCount > 0) {
+            void fetchAndMarkRead(() => true, true).then((view) => {
+              if (!view) return;
+              setConversation(view);
+              setNewMessageCount(0);
+            });
+          }
         }}
       >
+        {newMessageCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              nearBottom.current = true;
+              bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+              void fetchAndMarkRead(() => true, true).then((view) => {
+                if (!view) return;
+                setConversation(view);
+                setNewMessageCount(0);
+              });
+            }}
+            className="sticky top-3 z-10 mx-auto block border border-line bg-surface px-3 py-1.5 text-xs text-ink shadow-sm motion-reduce:scroll-auto"
+          >
+            ↓ {newMessageCount} {newMessageCount === 1 ? "nova mensagem" : "novas mensagens"}
+          </button>
+        ) : null}
         {conversation.hasMore ? (
           <div className="px-4 py-3 text-center">
             <button
@@ -294,7 +425,7 @@ export function ConversationStream({ conversationId }: { conversationId: string 
         <ul className="space-y-3 px-4 py-2">
           {conversation.messages.map((message) => (
             <li key={message.id} className={cn(message.mine && "flex justify-end")}>
-              <MessageBubble message={message} />
+              <MessageBubble message={message} onRetry={retryInflight} retrying={retryingId === message.id} />
             </li>
           ))}
 
@@ -316,11 +447,65 @@ export function ConversationStream({ conversationId }: { conversationId: string 
         onPending={addInflight}
         onSettled={settleInflight}
       />
+
+      {clearConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-6"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setClearConfirmOpen(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-conversation-title"
+            aria-describedby="clear-conversation-description"
+            className="w-full max-w-md border border-line bg-surface p-5"
+          >
+            <h2 id="clear-conversation-title" className="font-display text-base text-ink">
+              Apagar conversa?
+            </h2>
+            <p id="clear-conversation-description" className="mt-2 text-sm leading-relaxed text-ink-2">
+              Todas as mensagens desta conversa serão apagadas para os participantes. Esta ação é irreversível.
+            </p>
+            {actionError ? <p role="alert" className="mt-2 text-xs text-danger">{actionError}</p> : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                ref={clearCancelRef}
+                type="button"
+                onClick={() => setClearConfirmOpen(false)}
+                className="px-3 py-2 text-sm text-ink-2 hover:bg-sunken"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setClearConfirmOpen(false);
+                  void clear();
+                }}
+                className="px-3 py-2 text-sm text-danger hover:bg-danger-soft"
+              >
+                Apagar para todos
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function MessageBubble({ message }: { message: MessageView }) {
+function MessageBubble({
+  message,
+  onRetry,
+  retrying = false,
+}: {
+  message: MessageView;
+  onRetry?: (message: MessageView) => void;
+  retrying?: boolean;
+}) {
   return (
     <div className={cn("flex max-w-[85%] items-end gap-2", message.mine && "flex-row-reverse")}>
       <Avatar
@@ -347,6 +532,25 @@ function MessageBubble({ message }: { message: MessageView }) {
         >
           {message.content}
         </p>
+        {message.status === "pending" && retrying ? (
+          <p className="mt-1 text-[11px] text-ink-3">Tentando novamente…</p>
+        ) : message.status === "pending" ? (
+          <p className="mt-1 text-[11px] text-ink-3">Enviando…</p>
+        ) : message.status === "failed" ? (
+          <div className="mt-1 flex items-center justify-end gap-2 text-[11px] text-danger">
+            <span>{message.error ?? "Falha ao enviar"}</span>
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={() => onRetry(message)}
+                disabled={retrying}
+                className="underline underline-offset-2 disabled:opacity-50"
+              >
+                {retrying ? "Tentando…" : "Tentar novamente"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -371,5 +575,6 @@ function optimisticMessage(
     created_at: new Date().toISOString(),
     author,
     mine,
+    status: "pending",
   };
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { buildClientViewer, type BrowserClient } from "@/lib/session-client";
 import { writeActiveActor } from "@/lib/storage";
+import { getActiveActorAction, setActiveActorAction } from "@/app/actions/auth";
 import type { Viewer } from "@/lib/session";
 
 /**
@@ -19,7 +20,7 @@ interface SessionState {
   viewer: Viewer | null;
   client: BrowserClient | null;
   isLoading: boolean;
-  setActiveActor: (actorId: string) => void;
+  setActiveActor: (actorId: string) => Promise<boolean>;
   refresh: () => Promise<void>;
 }
 
@@ -33,9 +34,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (!client) return;
-    const next = await buildClientViewer(client);
-    setViewer(next);
-    return;
+    const [next, serverActiveActorId] = await Promise.all([
+      buildClientViewer(client),
+      getActiveActorAction(),
+    ]);
+    if (!next) {
+      setViewer(null);
+      return;
+    }
+
+    const activeActorId =
+      serverActiveActorId && next.identities.some((actor) => actor.id === serverActiveActorId)
+        ? serverActiveActorId
+        : (next.identities[0]?.id ?? null);
+
+    if (activeActorId) writeActiveActor(activeActorId);
+    setViewer({ ...next, activeActorId });
   }, [client]);
 
   useEffect(() => {
@@ -43,9 +57,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     async function start(browser: BrowserClient) {
-      const next = await buildClientViewer(browser);
+      const [next, serverActiveActorId] = await Promise.all([
+        buildClientViewer(browser),
+        getActiveActorAction(),
+      ]);
       if (!mounted) return;
-      setViewer(next);
+      if (!next) {
+        setViewer(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const activeActorId =
+        serverActiveActorId && next.identities.some((actor) => actor.id === serverActiveActorId)
+          ? serverActiveActorId
+          : (next.identities[0]?.id ?? null);
+
+      if (activeActorId) writeActiveActor(activeActorId);
+      setViewer({ ...next, activeActorId });
       setIsLoading(false);
     }
 
@@ -65,19 +94,39 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    function onStorage(event: StorageEvent) {
+      if (event.key === "vertice-identidade") void refresh();
+    }
+
+    window.addEventListener("storage", onStorage);
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      window.removeEventListener("storage", onStorage);
     };
   }, [client, refresh, router]);
 
-  const setActiveActor = useCallback(
-    (actorId: string) => {
-      writeActiveActor(actorId);
-      setViewer((current) => (current ? { ...current, activeActorId: actorId } : current));
-    },
-    [],
-  );
+  const actorSwitchTail = useRef(Promise.resolve());
+  const actorSwitchVersion = useRef(0);
+
+  const setActiveActor = useCallback((actorId: string): Promise<boolean> => {
+    const version = ++actorSwitchVersion.current;
+    const operation = actorSwitchTail.current.then(async () => {
+      const allowed = await setActiveActorAction(actorId);
+      if (allowed && version === actorSwitchVersion.current) {
+        writeActiveActor(actorId);
+        setViewer((current) => (current ? { ...current, activeActorId: actorId } : current));
+      }
+      return allowed;
+    });
+
+    actorSwitchTail.current = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }, []);
 
   return (
     <SessionContext.Provider value={{ viewer, client, isLoading, setActiveActor, refresh }}>

@@ -120,6 +120,8 @@ export interface MessageView {
   author: ActorSummary;
   /** A mensagem sai com as identidades do próprio usuário à direita. */
   mine: boolean;
+  status?: "pending" | "failed";
+  error?: string;
 }
 
 export interface ConversationCard {

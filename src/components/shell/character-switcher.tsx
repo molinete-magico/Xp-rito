@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, LogOut, Settings, Shield, User } from "lucide-react";
-import { setActiveActorAction, signOutAction } from "@/app/actions/auth";
+import { signOutAction } from "@/app/actions/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { AccountTypeStamp, Handle } from "@/components/ui/account-type";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/menu";
@@ -32,6 +32,7 @@ export function CharacterSwitcher({
   const { setActiveActor } = useSession();
   const [busy, waitTransition] = useTransition();
   const [signingOut, setSigningOut] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
   const mine = identities.filter(
@@ -45,11 +46,15 @@ export function CharacterSwitcher({
   );
 
   function switchTo(actorId: string, close: () => void) {
-    close();
-    setActiveActor(actorId);
+    setSwitchError(null);
     waitTransition(async () => {
-      await setActiveActorAction(actorId);
-      router.refresh();
+      const allowed = await setActiveActor(actorId);
+      if (allowed) {
+        close();
+        router.refresh();
+      } else {
+        setSwitchError("Não foi possível trocar de identidade.");
+      }
     });
   }
 
@@ -87,6 +92,7 @@ export function CharacterSwitcher({
     >
         {(close) => (
           <>
+            {switchError ? <p role="alert" className="border-b border-line px-3 py-2 text-xs text-danger">{switchError}</p> : null}
             {active ? (
               <>
                 <MenuLabel>Falando como</MenuLabel>
