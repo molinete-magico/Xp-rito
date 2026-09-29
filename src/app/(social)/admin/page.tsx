@@ -6,7 +6,9 @@ import {
   NpcRow,
   OrganizationCreateForm,
   OrganizationRow,
-  PlayerCharacterRow,
+  PlayerCharacterList,
+  OrganizationList,
+  NpcList,
   type NpcDraft,
   type OrgDraft,
   type PlayerSelectItem,
@@ -72,7 +74,31 @@ export default async function AdminPage() {
 
   return (
     <div className="px-4 py-5">
-      <h1 className="font-display text-lg text-ink">Painel do Mestre</h1>
+      <header className="border-b border-line pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="label text-ink-3">Mesa</p>
+            <h1 className="mt-1 font-display text-xl text-ink">Painel do Mestre</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">
+              Administre NPCs, personagens e organizações sem precisar sair da rede.
+              As ações abaixo alteram a mesa; mensagens privadas continuam seguindo as regras de identidade e participação.
+            </p>
+          </div>
+          <a
+            href="/messages"
+            className="border border-line px-3 py-2 text-sm text-ink-2 hover:bg-sunken"
+          >
+            Abrir mensagens
+          </a>
+        </div>
+
+        <dl className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <SummaryCard label="NPCs" value={npcs.length} />
+          <SummaryCard label="Personagens de jogadores" value={playerCharacters.length} />
+          <SummaryCard label="Organizações" value={orgs.length} />
+          <SummaryCard label="Jogadores" value={players.length} />
+        </dl>
+      </header>
 
       <section aria-labelledby="secao-npcs" className="mt-6">
         <h2 id="secao-npcs" className="label mb-3 text-ink-3">
@@ -80,15 +106,7 @@ export default async function AdminPage() {
         </h2>
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="order-2 md:order-1">
-            <ul className="border border-line">
-              {npcs.length === 0 ? (
-                <li className="px-3 py-4 text-sm text-ink-2">Nenhum NPC ainda.</li>
-              ) : (
-                npcs.map((npc) => (
-                  <NpcRow key={npc.id} npc={npc} players={players} />
-                ))
-              )}
-            </ul>
+            <NpcList npcs={npcs} players={players} />
           </div>
           <div className="order-1 md:order-2">
             <NpcCreateForm />
@@ -104,15 +122,7 @@ export default async function AdminPage() {
           O Mestre pode assumir um personagem de jogador (vira NPC) ou entregar
           um NPC a um jogador.
         </p>
-        <ul className="border border-line">
-          {playerCharacters.length === 0 ? (
-            <li className="px-3 py-4 text-sm text-ink-2">Nenhum personagem de jogador ainda.</li>
-          ) : (
-            playerCharacters.map((character) => (
-              <PlayerCharacterRow key={character.id} character={character} />
-            ))
-          )}
-        </ul>
+        <PlayerCharacterList characters={playerCharacters} />
       </section>
 
       <section aria-labelledby="secao-orgs" className="mt-8">
@@ -121,13 +131,7 @@ export default async function AdminPage() {
         </h2>
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="order-2 md:order-1">
-            <ul className="border border-line">
-              {orgs.length === 0 ? (
-                <li className="px-3 py-4 text-sm text-ink-2">Nenhuma organização ainda.</li>
-              ) : (
-                orgs.map((org) => <OrganizationRow key={org.id} org={org} />)
-              )}
-            </ul>
+            <OrganizationList organizations={orgs} />
           </div>
           <div className="order-1 md:order-2">
             <OrganizationCreateForm />
@@ -140,6 +144,15 @@ export default async function AdminPage() {
         operações do Mestre sobre qualquer registro, e recusa a de jogadores
         que tentem furar o caminho pelo painel.
       </footer>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border border-line px-3 py-2.5">
+      <dt className="text-[11px] text-ink-3">{label}</dt>
+      <dd className="mt-0.5 font-mono text-lg text-ink tabular-nums">{value}</dd>
     </div>
   );
 }
