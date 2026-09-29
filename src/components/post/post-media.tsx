@@ -66,7 +66,7 @@ function MediaFigure({
       : 4 / 3;
 
   return (
-    <figure className={cn("relative overflow-hidden bg-sunken", className)}>
+    <figure className={cn("relative overflow-hidden bg-surface", className)}>
       {compact ? (
         <Image
           src={src}
