@@ -36,11 +36,11 @@ export function IdentitySwitcher({
   if (!active) return null;
 
   function choose(actorId: string) {
-    setOpen(false);
     setSwitchError(null);
     startTransition(async () => {
       const allowed = await setActiveActor(actorId);
       if (allowed) {
+        setOpen(false);
         router.refresh();
       } else {
         setSwitchError("Não foi possível trocar de identidade.");
