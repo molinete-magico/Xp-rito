@@ -75,9 +75,25 @@ export interface PostCard {
    * contadores próprios. Nunca há repost de repost, então o tipo é o mesmo.
    */
   reposted: { post: PostCard; author: ActorSummary } | null;
-  /** Preenchido quando o post é uma resposta: quem é o autor do original. */
-  replyContext: { username: string; display_name: string } | null;
+  /**
+   * Preenchido quando o post é uma resposta: o post citado, desenhado acima da
+   * resposta como o Twitter faz. O avô não entra — um nível só, como lá.
+   */
+  repliedTo: ReplyContext | null;
   edited: boolean;
+}
+
+/** O post ao qual uma resposta responde, para a prévia acima dela. */
+export interface ReplyContext {
+  post: {
+    id: string;
+    content: string | null;
+    created_at: string;
+    media: PostMediaView[];
+    /** O citado também é resposta: a prévia não desenha o que vem antes dele. */
+    isReply: boolean;
+  };
+  author: ActorSummary;
 }
 
 export interface NotificationView {

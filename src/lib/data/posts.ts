@@ -1,6 +1,6 @@
 import { toActorCard, type DataClient } from "@/lib/data/identities";
 import type { Viewer } from "@/lib/session";
-import type { ActorSummary, PostCard, PostMediaView } from "@/lib/types";
+import type { ActorSummary, PostCard, PostMediaView, ReplyContext } from "@/lib/types";
 
 /**
  * Leitura de publicações.
@@ -200,21 +200,22 @@ export async function loadReplies(
 }
 
 /**
- * Hidratação em lote: contadores, mídia, interação do leitor e contexto de
- * resposta. Roda sempre no máximo cinco consultas adicionais.
+ * Hidratação em lote: contadores, mídia, interação do leitor e o post citado
+ * pelas respostas. Roda sempre com um número fixo de consultas, sem N+1.
  */
 async function hydrate(client: Client, viewer: Viewer, rows: PostRow[]): Promise<PostCard[]> {
   if (rows.length === 0) return [];
 
-  const originalIds = unique(rows.map((row) => row.repost_of));
-  const { data: originals } =
-    originalIds.length > 0
-      ? await client.from("posts").select(POST_FIELDS).in("id", originalIds)
-      : { data: [] as unknown[] };
-  const originalRows = (originals ?? []) as unknown as PostRow[];
-  const originalById = new Map(originalRows.map((row) => [row.id, row]));
+  // Um nível: os originais dos reposts e os posts citados pelas respostas. Dois
+  // níveis: o citado de um original repostado, para a prévia sair completa.
+  const related = await loadRelated(client, unique(rows.flatMap((row) => [row.repost_of, row.reply_to])));
+  const secondLevel = await loadRelated(
+    client,
+    unique([...related.values()].map((row) => row.reply_to)).filter((id) => !related.has(id)),
+  );
+  const relatedById = new Map([...related.values(), ...secondLevel.values()].map((row) => [row.id, row]));
 
-  const allIds = [...rows.map((row) => row.id), ...originalRows.map((row) => row.id)];
+  const allIds = unique([...rows.map((row) => row.id), ...relatedById.keys()]);
 
   const [mediaResult, likesResult, repliesResult, repostsResult] = await Promise.all([
     client.from("post_media").select(MEDIA_FIELDS).in("post_id", allIds),
@@ -229,11 +230,6 @@ async function hydrate(client: Client, viewer: Viewer, rows: PostRow[]): Promise
   const repostsByPost = groupBy(repostsResult.data ?? [], (row) => row.repost_of as string);
 
   const viewerActorIds = new Set(viewer.identities.map((actor) => actor.id));
-
-  const contextByPost = await loadReplyContexts(
-    client,
-    unique(rows.map((row) => row.reply_to)).filter((id) => !allIds.includes(id)),
-  );
 
   const describe = (row: PostRow) => {
     const postLikes = likesByPost.get(row.id) ?? [];
@@ -255,6 +251,22 @@ async function hydrate(client: Client, viewer: Viewer, rows: PostRow[]): Promise
     };
   };
 
+  const previewOf = (parentId: string | null): ReplyContext | null => {
+    if (!parentId) return null;
+    const parent = relatedById.get(parentId);
+    if (!parent) return null;
+    return {
+      author: toActorCard(parent.author),
+      post: {
+        id: parent.id,
+        content: parent.content,
+        created_at: parent.created_at,
+        media: orderMedia(mediaByPost.get(parent.id) ?? []),
+        isReply: Boolean(parent.reply_to),
+      },
+    };
+  };
+
   return rows.map((row) => {
     const described = describe(row);
     const base = {
@@ -267,7 +279,7 @@ async function hydrate(client: Client, viewer: Viewer, rows: PostRow[]): Promise
     };
 
     if (row.repost_of) {
-      const original = originalById.get(row.repost_of);
+      const original = relatedById.get(row.repost_of);
       if (original) {
         const originalDescribed = describe(original);
         return {
@@ -288,10 +300,10 @@ async function hydrate(client: Client, viewer: Viewer, rows: PostRow[]): Promise
               viewer: originalDescribed.viewer,
               edited: originalDescribed.edited,
               reposted: null,
-              replyContext: null,
+              repliedTo: previewOf(original.reply_to),
             },
           },
-          replyContext: null,
+          repliedTo: null,
         } satisfies PostCard;
       }
     }
@@ -304,9 +316,16 @@ async function hydrate(client: Client, viewer: Viewer, rows: PostRow[]): Promise
       stats: described.stats,
       viewer: described.viewer,
       reposted: null,
-      replyContext: contextByPost.get(row.id) ?? null,
+      repliedTo: previewOf(row.reply_to),
     } satisfies PostCard;
   });
+}
+
+/** Posts citados, em uma consulta por nível pedido. */
+async function loadRelated(client: Client, ids: string[]): Promise<Map<string, PostRow>> {
+  if (ids.length === 0) return new Map();
+  const { data } = await client.from("posts").select(POST_FIELDS).in("id", ids);
+  return new Map(((data ?? []) as unknown as PostRow[]).map((row) => [row.id, row]));
 }
 
 function baseFor(row: PostRow) {
@@ -318,29 +337,6 @@ function baseFor(row: PostRow) {
     reply_to: row.reply_to,
     repost_of: row.repost_of,
   };
-}
-
-/** Autores dos posts citados por respostas, para a linha "em resposta a @x". */
-async function loadReplyContexts(
-  client: Client,
-  parentIds: string[],
-): Promise<Map<string, { username: string; display_name: string }>> {
-  const result = new Map<string, { username: string; display_name: string }>();
-  if (parentIds.length === 0) return result;
-
-  const { data } = await client
-    .from("posts")
-    .select("id, author:actors!posts_actor_id_fkey(username, display_name)")
-    .in("id", parentIds);
-
-  for (const row of (data ?? []) as unknown as {
-    id: string;
-    author: { username: string; display_name: string } | null;
-  }[]) {
-    if (row.author) result.set(row.id, row.author);
-  }
-
-  return result;
 }
 
 async function postIdsForHashtag(client: Client, name: string): Promise<string[]> {

@@ -91,7 +91,7 @@ export function PostDetailStream({ postId }: { postId: string }) {
         </Link>
       </div>
 
-      <PostCard post={post} variant="detail" hideContext />
+      <PostCard post={post} variant="detail" />
 
       <p className="label border-y border-line px-4 py-1.5 text-ink-3">
         {replies.length === 0
@@ -115,7 +115,11 @@ export function PostDetailStream({ postId }: { postId: string }) {
       {replies.length === 0 ? (
         <EmptyState title="Ninguém respondeu" />
       ) : (
-        replies.map((reply) => <PostCard key={reply.id} post={reply} />)
+        replies.map((reply) => (
+          // Resposta direta não repete o post que já está no topo; as mais
+          // profundas mostram o que estão citando.
+          <PostCard key={reply.id} post={reply} hideContext={reply.reply_to === post.id} />
+        ))
       )}
 
       <p className="px-4 py-6 text-center text-[11px] text-ink-3">

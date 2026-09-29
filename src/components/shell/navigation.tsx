@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Compass, Home, Search, Shield, User } from "lucide-react";
+import { Bell, Compass, Home, Search, Settings, Shield, User } from "lucide-react";
 import { NavItem, UnreadBadge } from "@/components/shell/nav-item";
 import { useUnread } from "@/components/shell/unread-provider";
-import { AccountMenu } from "@/components/shell/account-menu";
 import { site } from "@/lib/site";
 import { cn } from "@/lib/cn";
 import type { ActorSummary } from "@/lib/types";
@@ -36,12 +35,14 @@ export function SideNav({
         <NavItem href="/search" label="Buscar" icon={<Search />} />
         <NavItem href="/notifications" label="Notificações" icon={<Bell />} badge={unread} />
         <NavItem href={profileHref} label="Perfil" icon={<User />} />
+        <NavItem href="/settings" label="Configurações" icon={<Settings />} />
       </nav>
 
-      <div className="mt-auto space-y-1 border-t border-line pt-3">
-        {isGm ? <NavItem href="/admin" label="Painel do Mestre" icon={<Shield />} /> : null}
-        <AccountMenu isGm={isGm} username={active?.username ?? null} />
-      </div>
+      {isGm ? (
+        <div className="mt-auto border-t border-line pt-3">
+          <NavItem href="/admin" label="Painel do Mestre" icon={<Shield />} />
+        </div>
+      ) : null}
     </>
   );
 }

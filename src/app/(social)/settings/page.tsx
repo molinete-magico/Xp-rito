@@ -1,3 +1,6 @@
+import { LogOut } from "lucide-react";
+import { signOutAction } from "@/app/actions/auth";
+import { buttonClass } from "@/components/ui/button";
 import { requireViewer } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { AccountForm, CharacterForm, NewCharacterForm } from "@/components/settings/forms";
@@ -106,6 +109,13 @@ export default async function SettingsPage() {
         <p className="mt-2 text-[11px] text-ink-3">
           Sessão de {viewer.profile.display_name} · {viewer.isGm ? "Mestre" : "jogador"}
         </p>
+
+        <form action={signOutAction} className="mt-4">
+          <button type="submit" className={buttonClass("danger", "sm")}>
+            <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
+            Sair da conta
+          </button>
+        </form>
       </footer>
     </div>
   );

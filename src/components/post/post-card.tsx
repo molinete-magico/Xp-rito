@@ -7,7 +7,7 @@ import { PostActions } from "@/components/post/post-actions";
 import { accountTypeOf } from "@/lib/site";
 import { relativeTime, fullTimestamp } from "@/lib/format/datetime";
 import { cn } from "@/lib/cn";
-import type { PostCard as PostCardData } from "@/lib/types";
+import type { PostCard as PostCardData, ReplyContext } from "@/lib/types";
 
 /**
  * Uma publicação.
@@ -63,17 +63,20 @@ export function PostCard({
       className={cn("px-4", detail ? "pt-3 pb-2" : "border-b border-line py-3")}
       aria-labelledby={`post-author-${post.id}`}
     >
-      {!hideContext && post.replyContext ? (
-        <p className="mb-1 flex items-center gap-2 pl-12 text-xs text-ink-3">
-          <span aria-hidden="true" className="h-px w-8 bg-line-2" />
-          em resposta a{" "}
-          <Link
-            href={`/profile/${post.replyContext.username}`}
-            className="font-mono hover:text-ink hover:underline"
-          >
-            @{post.replyContext.username}
-          </Link>
-        </p>
+      {!hideContext && post.repliedTo ? (
+        <>
+          <RepliedPost repliedTo={post.repliedTo} detail={detail} />
+          <p className="my-2 flex items-center gap-2 pl-12 text-xs text-ink-3">
+            <span aria-hidden="true" className="h-4 w-px shrink-0 bg-line-2" />
+            <span className="truncate">em resposta a</span>{" "}
+            <Link
+              href={`/profile/${post.repliedTo.author.username}`}
+              className="truncate font-mono hover:text-ink hover:underline"
+            >
+              @{post.repliedTo.author.username}
+            </Link>
+          </p>
+        </>
       ) : null}
 
       <div className="flex gap-3">
@@ -129,5 +132,66 @@ export function PostCard({
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * O post citado, acima da resposta.
+ *
+ * Mesma pegada do Twitter: o original aparece completo mas compacto, sem
+ * contadores e sem ações, e a linha vertical liga o avatar dele ao da resposta.
+ */
+function RepliedPost({ repliedTo, detail }: { repliedTo: ReplyContext; detail: boolean }) {
+  const { post, author } = repliedTo;
+
+  return (
+    <div className="flex gap-3 opacity-90">
+      <Link href={`/post/${post.id}`} tabIndex={-1} aria-hidden="true" className="shrink-0">
+        <Avatar
+          name={author.display_name}
+          username={author.username}
+          src={author.avatar_url}
+          size={detail ? "md" : "sm"}
+          decorative
+        />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <header className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <Link
+            href={`/profile/${author.username}`}
+            className="truncate text-sm font-medium text-ink hover:underline"
+          >
+            {author.display_name}
+          </Link>
+          <AccountTypeStamp type={accountTypeOf(author)} />
+          <Handle username={author.username} size="xs" />
+          <span aria-hidden="true" className="text-ink-3">
+            ·
+          </span>
+          <time
+            dateTime={post.created_at}
+            title={fullTimestamp(post.created_at)}
+            className="text-xs text-ink-3"
+          >
+            {relativeTime(post.created_at)}
+          </time>
+        </header>
+
+        {post.content ? (
+          <Link href={`/post/${post.id}`} className="block">
+            <PostText
+              content={post.content}
+              className={cn("mt-1 line-clamp-3 text-ink-2", detail ? "text-[15px]" : "text-sm")}
+            />
+          </Link>
+        ) : null}
+
+        {post.media.length > 0 ? (
+          <Link href={`/post/${post.id}`} className="block">
+            <PostMedia media={post.media} className="mt-2 max-w-[18rem]" />
+          </Link>
+        ) : null}
+      </div>
+    </div>
   );
 }
