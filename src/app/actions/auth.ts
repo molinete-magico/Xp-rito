@@ -124,6 +124,17 @@ export async function updatePasswordAction(_prev: ActionState, formData: FormDat
   redirect("/home");
 }
 
+/** Identidade persistida no servidor, usada para reconciliar abas e refresh. */
+export async function getActiveActorAction(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+  return (await cookies()).get(ACTIVE_ACTOR_COOKIE)?.value ?? null;
+}
+
 /** Troca a identidade com quem se está publicando. */
 export async function setActiveActorAction(actorId: string): Promise<boolean> {
   const supabase = await createClient();
