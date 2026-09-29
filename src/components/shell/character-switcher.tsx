@@ -32,6 +32,7 @@ export function CharacterSwitcher({
   const { setActiveActor } = useSession();
   const [busy, waitTransition] = useTransition();
   const [signingOut, setSigningOut] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
   const mine = identities.filter(
@@ -46,9 +47,14 @@ export function CharacterSwitcher({
 
   function switchTo(actorId: string, close: () => void) {
     close();
+    setSwitchError(null);
     waitTransition(async () => {
       const allowed = await setActiveActor(actorId);
-      if (allowed) router.refresh();
+      if (allowed) {
+        router.refresh();
+      } else {
+        setSwitchError("Não foi possível trocar de identidade.");
+      }
     });
   }
 
@@ -86,6 +92,7 @@ export function CharacterSwitcher({
     >
         {(close) => (
           <>
+            {switchError ? <p role="alert" className="border-b border-line px-3 py-2 text-xs text-danger">{switchError}</p> : null}
             {active ? (
               <>
                 <MenuLabel>Falando como</MenuLabel>
