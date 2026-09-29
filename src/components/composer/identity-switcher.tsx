@@ -29,6 +29,7 @@ export function IdentitySwitcher({
   const { setActiveActor } = useSession();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   const active = identities.find((actor) => actor.id === activeActorId) ?? identities[0] ?? null;
 
@@ -36,9 +37,15 @@ export function IdentitySwitcher({
 
   function choose(actorId: string) {
     setOpen(false);
+    setSwitchError(null);
     startTransition(async () => {
       const allowed = await setActiveActor(actorId);
-      if (allowed) router.refresh();
+      if (allowed) {
+        router.refresh();
+      } else {
+        setSwitchError("Não foi possível trocar de identidade.");
+        setOpen(true);
+      }
     });
   }
 
@@ -63,6 +70,8 @@ export function IdentitySwitcher({
           <span className="block truncate font-mono text-[11px] text-ink-3">@{active.username}</span>
         </span>
       </button>
+
+      {switchError ? <p role="alert" className="mt-1 text-xs text-danger">{switchError}</p> : null}
 
       {open ? (
         <>
