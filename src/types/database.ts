@@ -454,6 +454,18 @@ export type Database = {
       count_unread_notifications: { Args: Record<never, never>; Returns: number };
       my_dm_actor_ids: { Args: Record<never, never>; Returns: string[] };
       owns_dm_actor: { Args: { target: string }; Returns: boolean };
+      can_voice_actor: { Args: { target: string }; Returns: boolean };
+      dm_can_speak_as: { Args: { target: string; speaker: string }; Returns: boolean };
+      dm_speaker_ids: {
+        Args: { target: string };
+        Returns: {
+          id: string;
+          display_name: string;
+          username: string;
+          avatar_url: string | null;
+          is_npc: boolean;
+        }[];
+      };
       is_dm_participant: { Args: { target: string }; Returns: boolean };
       dm_start_direct: { Args: { sender_actor: string; target_actor: string }; Returns: string };
       dm_create_group: {

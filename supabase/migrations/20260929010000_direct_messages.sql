@@ -64,8 +64,40 @@ create index dm_participants_actor_idx
 -- -----------------------------------------------------------------------------
 -- Autorização
 -- -----------------------------------------------------------------------------
+--
+-- Um usuário fala como os personagens que possui. O Mestre fala também como os
+-- NPCs da mesa — é o trabalho dele — mas a voz é sempre POR CONVERSA: só dá para
+-- falar como um NPC que JÁ está naquela conversa.
+--
+-- Essa última condição é o que segura a conversa privada dos jogadores. Sem ela,
+-- o Mestre poderia falar como qualquer NPC e, ao entrar na conversa, ler o que
+-- quisesse.
+--
+-- `dm_speaker_ids` devolve só quem é personagem; organização não tem boca, e
+-- quem não é personagem não entra na lista.
 
--- Identidades que o usuário usa como remetente de DM: os personagens DONOS dele.
+-- O usuário pode dar voz a este ator, em qualquer lugar?
+-- Dono do personagem sempre; NPC apenas para o Mestre. Não depende da conversa,
+-- então serve para validar quem entra numa conversa nova.
+create or replace function public.can_voice_actor(target uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.actors a
+    join public.characters c on c.id = a.character_id
+    where a.id = target
+      and (c.owner_id = auth.uid() or (c.is_npc and public.is_gm()))
+  );
+$$;
+
+-- Identidades com que o usuário convive: as próprias e, para o Mestre, os NPCs
+-- da mesa. Abrir conversa, listar na caixa e ler são a mesma pergunta — "eu
+-- participo de alguma dessas conversas?" — e a resposta mora aqui, num lugar só.
 create or replace function public.my_dm_actor_ids()
 returns setof uuid
 language sql
@@ -76,10 +108,49 @@ as $$
   select a.id
   from public.actors a
   join public.characters c on c.id = a.character_id
-  where c.owner_id = auth.uid();
+  where c.owner_id = auth.uid()
+     or (c.is_npc and public.is_gm());
 $$;
 
--- O usuário é dono desta identidade de DM?
+-- O usuário pode falar como este ator, nesta conversa?
+-- Igual a lista acima, mas exige que o ator esteja na conversa: é o que impede o
+-- Mestre de aparecer numa conversa de jogadores.
+create or replace function public.dm_can_speak_as(target uuid, speaker uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.dm_participants p
+    where p.conversation_id = target
+      and p.actor_id = speaker
+      and p.actor_id in (select public.my_dm_actor_ids())
+  );
+$$;
+
+-- Personagens com que o usuário pode falar na conversa, para o seletor da tela.
+create or replace function public.dm_speaker_ids(target uuid)
+returns table (id uuid, display_name text, username text, avatar_url text, is_npc boolean)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id, a.display_name, a.username, a.avatar_url, c.is_npc
+  from public.actors a
+  join public.dm_participants p
+    on p.actor_id = a.id
+   and p.conversation_id = target
+  join public.characters c on c.id = a.character_id
+  where p.actor_id in (select public.my_dm_actor_ids())
+  order by a.display_name;
+$$;
+
+-- O usuário é dono desta identidade de DM? Continua sendo só o dono: é o que
+-- impede o Mestre de abrir conversa no nome de personagem alheio.
 create or replace function public.owns_dm_actor(target uuid)
 returns boolean
 language sql
@@ -152,11 +223,16 @@ stable
 security definer
 set search_path = ''
 as $$
+  -- O Mestre pode ter vários personagens na mesma conversa, uma linha por
+  -- identidade. `distinct on` achata numa só, senão a conversa apareceria repetida
+  -- na caixa; a mais recente manda, porque é o último ponto de leitura.
   with mine as (
-    select p.conversation_id, p.last_read_at
+    select distinct on (p.conversation_id)
+      p.conversation_id, p.last_read_at
     from public.dm_participants p
     where p.actor_id in (select public.my_dm_actor_ids())
       and not p.hidden
+    order by p.conversation_id, p.last_read_at desc
   )
   select
     c.id,
@@ -265,7 +341,7 @@ begin
     raise exception 'Conversa sem destinatário';
   end if;
 
-  if sender_actor is null or not public.owns_dm_actor(sender_actor) then
+  if sender_actor is null or not public.can_voice_actor(sender_actor) then
     raise exception 'Escolha um personagem seu para enviar a mensagem';
   end if;
 
@@ -326,7 +402,7 @@ begin
     raise exception 'Escolha quem participa';
   end if;
 
-  if sender_actor is null or not public.owns_dm_actor(sender_actor) then
+  if sender_actor is null or not public.can_voice_actor(sender_actor) then
     raise exception 'Escolha um personagem seu para abrir a conversa';
   end if;
 
@@ -366,6 +442,12 @@ end;
 $$;
 
 -- Limpar a conversa vale para todos os participantes.
+--
+-- Diferente de ler e falar, apagar fica só para quem tem personagem próprio na
+-- conversa. `is_dm_participant` agora é verdadeiro também para o Mestre que
+-- entrou como NPC, e apagar é de todos: deixar valendo ali daria ao Mestre o
+-- poder de reescrever a história de uma conversa em que ele é apenas uma das
+-- vozes. Ele sai da conversa, mas não apaga a conversa dos outros.
 create or replace function public.dm_clear(target uuid)
 returns void
 language plpgsql
@@ -373,7 +455,17 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not public.is_dm_participant(target) then
+  if not exists (
+    select 1
+    from public.dm_participants p
+    where p.conversation_id = target
+      and p.actor_id in (
+        select a.id
+        from public.actors a
+        join public.characters c on c.id = a.character_id
+        where c.owner_id = auth.uid()
+      )
+  ) then
     raise exception 'Você não participa dessa conversa';
   end if;
 
@@ -432,12 +524,13 @@ create policy "dm_messages: só quem participa"
   on public.dm_messages for select to authenticated
   using (public.is_dm_participant(conversation_id));
 
--- Publicar exige estar na conversa e ser dono da identidade que fala.
+-- Publicar exige estar na conversa E falar como alguém que está nela. As duas
+-- condições numa política só, porque "participa" sem "fala como" deixaria o
+-- Mestre escrever num NPC que ele não comanda.
 create policy "dm_messages: fala como identidade que controlo"
   on public.dm_messages for insert to authenticated
   with check (
-    public.is_dm_participant(conversation_id)
-    and public.owns_dm_actor(actor_id)
+    public.dm_can_speak_as(conversation_id, actor_id)
   );
 
 -- Limpar, ocultar e marcar lida são as RPC SECURITY DEFINER acima: nada de
@@ -449,6 +542,9 @@ grant select, insert on public.dm_messages to authenticated;
 
 grant execute on function public.my_dm_actor_ids to authenticated;
 grant execute on function public.owns_dm_actor to authenticated;
+grant execute on function public.can_voice_actor to authenticated;
+grant execute on function public.dm_can_speak_as(uuid, uuid) to authenticated;
+grant execute on function public.dm_speaker_ids(uuid) to authenticated;
 grant execute on function public.is_dm_participant to authenticated;
 grant execute on function public.dm_unread_counts to authenticated;
 grant execute on function public.dm_start_direct to authenticated;

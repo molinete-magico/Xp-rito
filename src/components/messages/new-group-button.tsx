@@ -4,10 +4,11 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquarePlus, X } from "lucide-react";
 import { useSession } from "@/components/shell/session-provider";
-import { Checkbox, Field, FormMessage, TextInput } from "@/components/ui/field";
+import { Checkbox, Field, FormMessage, Select, TextInput } from "@/components/ui/field";
 import { buttonClass } from "@/components/ui/button";
 import { createGroupAction } from "@/app/actions/messages";
 import { loadMessageCandidates } from "@/lib/data/messages";
+import { dmSenderChoice, dmVoiceIdentities } from "@/lib/data/identities";
 import { idleState } from "@/lib/validation/schemas";
 import type { ActorSummary } from "@/lib/types";
 
@@ -18,6 +19,10 @@ import type { ActorSummary } from "@/lib/types";
  * conta existente, mas convidar a mesa inteira por um clique errado é o tipo de
  * coisa que não se desfaz. Escolher o nome e os participantes é formulário, então
  * a ação entra por `useActionState` e devolve o id da conversa para navegar.
+ *
+ * Quem tem mais de um personagem com quem falar escolhe também de quem é a
+ * conversa: o Mestre cria o grupo como o próprio personagem ou como um NPC da
+ * mesa, que passa a valer como participante.
  */
 export function NewGroupButton({ iconOnly = false }: { iconOnly?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -44,6 +49,10 @@ function NewGroupDialog({ onClose }: { onClose: () => void }) {
   const { viewer, client } = useSession();
   const [state, formAction, pending] = useActionState(createGroupAction, idleState);
   const [candidates, setCandidates] = useState<ActorSummary[] | null>(null);
+
+  const voices = viewer ? dmVoiceIdentities(viewer) : [];
+  const [senderId, setSenderId] = useState<string | null>(null);
+  const sender = viewer ? dmSenderChoice(viewer, senderId) : null;
 
   useEffect(() => {
     if (!client || !viewer) return;
@@ -94,6 +103,26 @@ function NewGroupDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <form action={formAction} className="space-y-4">
+          <input type="hidden" name="senderActorId" value={sender?.id ?? ""} />
+
+          {voices.length > 1 ? (
+            <Field label="Abrir como" error={state.errors?.senderActorId}>
+              {(props) => (
+                <Select
+                  {...props}
+                  value={sender?.id ?? ""}
+                  onChange={(event) => setSenderId(event.currentTarget.value)}
+                >
+                  {voices.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.display_name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          ) : null}
+
           <Field label="Nome da conversa" error={state.errors?.title}>
             {(props) => <TextInput {...props} name="title" maxLength={60} autoFocus />}
           </Field>

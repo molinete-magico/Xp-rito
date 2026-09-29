@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewer } from "@/lib/session";
-import { dmIdentityOf } from "@/lib/data/identities";
+import { dmSenderChoice, dmVoiceIdentities } from "@/lib/data/identities";
 import {
   fieldErrors,
   groupSchema,
@@ -19,9 +19,11 @@ import {
  * (RLS e as funções `public.dm_*`). A Action valida formato e traduz a recusa,
  * que chega em inglês.
  *
- * O remetente é a identidade de DM da pessoa: o personagem que ela está com
- * aberto, se for dela. NPC e organização não têm caixa, e é isso que impede o
- * Mestre de ler a conversa dos jogadores.
+ * O remetente é escolhido na tela e vai no formulário. A tela mostra quem pode
+ * falar — personagem próprio e, para o Mestre, os NPCs da mesa que já estão na
+ * conversa — mas quem decide é `public.dm_can_speak_as`, na política de insert:
+ * uma tela adulterada não consegue falar por personagem alheio nem entrar numa
+ * conversa que não é do usuário.
  */
 
 export async function sendMessageAction(
@@ -32,20 +34,20 @@ export async function sendMessageAction(
 
   const parsed = messageSchema.safeParse({
     conversationId: formData.get("conversationId"),
+    senderActorId: formData.get("senderActorId"),
     content: formData.get("content"),
   });
 
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
-  const sender = dmIdentityOf(viewer);
-  if (!sender) {
-    return { ok: false, message: "Crie um personagem antes de enviar mensagens." };
+  if (!dmVoiceIdentities(viewer).some((actor) => actor.id === parsed.data.senderActorId)) {
+    return { ok: false, message: "Escolha um personagem desta conversa." };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.from("dm_messages").insert({
     conversation_id: parsed.data.conversationId,
-    actor_id: sender.id,
+    actor_id: parsed.data.senderActorId,
     content: parsed.data.content,
   });
 
@@ -58,10 +60,11 @@ export async function sendMessageAction(
 /** Abre (ou reabre) a conversa direta e devolve o id para navegar até ela. */
 export async function startDirectAction(
   targetActorId: string,
+  senderActorId?: string,
 ): Promise<{ conversationId: string } | { error: string }> {
   const viewer = await requireViewer();
 
-  const sender = dmIdentityOf(viewer);
+  const sender = dmSenderChoice(viewer, senderActorId);
   if (!sender) {
     return { error: "Crie um personagem antes de enviar mensagens." };
   }
@@ -86,12 +89,13 @@ export async function createGroupAction(_prev: ActionState, formData: FormData):
 
   const parsed = groupSchema.safeParse({
     title: formData.get("title"),
+    senderActorId: formData.get("senderActorId"),
     members: formData.getAll("members"),
   });
 
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
-  const sender = dmIdentityOf(viewer);
+  const sender = dmSenderChoice(viewer, parsed.data.senderActorId);
   if (!sender) {
     return { ok: false, message: "Crie um personagem antes de abrir conversas." };
   }

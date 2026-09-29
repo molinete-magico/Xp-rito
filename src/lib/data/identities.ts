@@ -57,18 +57,49 @@ export async function loadIdentities(
 }
 
 /**
- * Identidade com que a pessoa fala em conversa privada.
+ * Identidades com que a pessoa pode falar numa conversa.
  *
- * Só personagem que tem dono: NPC e organização não têm caixa de entrada, e é
- * justamente isso que impede o Mestre de ler a conversa dos jogadores. O banco
- * (public.my_dm_actor_ids) é a autoridade; aqui só escolhemos a identidade certa
- * para não errar o remetente na tela.
+ * Um jogador fala como os próprios personagens. O Mestre também fala como os NPCs
+ * da mesa, mas só os que JÁ estão na conversa: a voz é por conversa, senão o
+ * Mestre entraria em conversa alheia. Por isso o filtro cruza os participantes da
+ * conversa com quem a pessoa pode comandar (o próprio personagem, ou NPC se GM).
+ *
+ * O banco (public.dm_speaker_ids e a política de insert) é a autoridade; aqui só
+ * montamos as opções da tela e escolhemos um remetente inicial.
  */
-export function dmIdentityOf(viewer: Viewer): ActorSummary | null {
-  const owned = viewer.identities.filter(
-    (actor) => actor.entity_type === "character" && actor.is_npc !== true,
+export function dmSpeakerCandidates(
+  viewer: Viewer,
+  participants: ActorSummary[],
+): ActorSummary[] {
+  const canCommand = new Set(
+    viewer.identities
+      .filter((actor) => actor.entity_type === "character" && (actor.is_npc !== true || viewer.isGm))
+      .map((actor) => actor.id),
   );
-  return owned.find((actor) => actor.id === viewer.activeActorId) ?? owned[0] ?? null;
+  return participants.filter((actor) => actor.entity_type === "character" && canCommand.has(actor.id));
+}
+
+/**
+ * Personagens com que a pessoa pode dar voz em qualquer conversa, e que por isso
+ * podem abrir uma. Sem conversa em mãos (abrir conversa direta, criar grupo) não
+ * dá para filtrar pelos participantes, então a lista é a do próprio usuário. Para
+ * o Mestre, isso inclui os NPCs da mesa.
+ */
+export function dmVoiceIdentities(viewer: Viewer): ActorSummary[] {
+  return viewer.identities.filter(
+    (actor) => actor.entity_type === "character" && (actor.is_npc !== true || viewer.isGm),
+  );
+}
+
+/**
+ * Escolhe o remetente de uma ação que não tem conversa carregada: usa o que veio
+ * do formulário quando é uma voz válida, senão o personagem ativo. Serve para
+ * abrir conversa e criar grupo, onde a conversa ainda não existe.
+ */
+export function dmSenderChoice(viewer: Viewer, senderActorId?: string | null): ActorSummary | null {
+  const voices = dmVoiceIdentities(viewer);
+  const wanted = senderActorId ? voices.find((actor) => actor.id === senderActorId) : null;
+  return wanted ?? voices.find((actor) => actor.id === viewer.activeActorId) ?? voices[0] ?? null;
 }
 
 /** Normaliza a linha do PostgREST (com embeds) para o formato de domínio. */

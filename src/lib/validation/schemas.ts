@@ -113,11 +113,13 @@ export const groupTitleField = trimmed.pipe(
 
 export const messageSchema = z.object({
   conversationId: z.string().uuid("Conversa inválida."),
+  senderActorId: z.string().uuid("Escolha quem está enviando."),
   content: messageContentField,
 });
 
 export const groupSchema = z.object({
   title: groupTitleField,
+  senderActorId: z.string().uuid("Escolha quem está abrindo a conversa."),
   members: z.array(z.string().uuid()).min(1, "Convide pelo menos uma pessoa."),
 });
 

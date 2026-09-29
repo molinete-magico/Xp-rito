@@ -16,10 +16,9 @@ import {
 } from "@/app/actions/messages";
 import { formatMessageCursor, loadConversation, MESSAGE_PAGE_SIZE } from "@/lib/data/messages";
 import { fullTimestamp, relativeTime } from "@/lib/format/datetime";
-import { dmIdentityOf } from "@/lib/data/identities";
+import { dmSpeakerCandidates } from "@/lib/data/identities";
 import { cn } from "@/lib/cn";
-import type { ConversationView, MessageView } from "@/lib/types";
-import type { Viewer } from "@/lib/session";
+import type { ActorSummary, ConversationView, MessageView } from "@/lib/types";
 
 /**
  * Conversa aberta.
@@ -145,11 +144,6 @@ export function ConversationStream({ conversationId }: { conversationId: string 
     );
   }
 
-  // O TypeScript não afina `viewer` dentro de funções declaradas depois do
-  // guarda acima, porque elas podem ser chamadas a qualquer momento; o `current`
-  // é a mesma coisa, já verificada.
-  const current = viewer;
-
   async function loadOlder() {
     if (!client || !viewer || !conversation || conversation.messages.length === 0) return;
     const first = conversation.messages[0];
@@ -195,10 +189,19 @@ export function ConversationStream({ conversationId }: { conversationId: string 
     await reload();
   }
 
-  function addInflight(content: string) {
+  // A conversa decide quem pode falar nela: o personagem próprio e, para o
+  // Mestre, os NPCs da mesa que já estão aqui. `speakers` é a lista que o
+  // compositor mostra, e `mineActors` é o que conta como "minha mensagem" — quem
+  // fala por um NPC que está na conversa está do lado de quem escreve.
+  const speakers = dmSpeakerCandidates(viewer, conversation.participants);
+  const mineActors = new Set(speakers.map((speaker) => speaker.id));
+
+  function addInflight(sender: ActorSummary, content: string) {
     const id = `optimistic-${Date.now()}`;
-    const message = optimisticMessage(current, id, content);
-    if (message) setInflight((existing) => [...existing, message]);
+    // A mensagem otimista sai do lado de quem escreve, e quem escreve é o
+    // remetente escolhido agora — o mesmo que o formulário vai mandar.
+    const message = optimisticMessage(sender, id, content, mineActors.has(sender.id));
+    setInflight((existing) => [...existing, message]);
     return id;
   }
 
@@ -306,7 +309,10 @@ export function ConversationStream({ conversationId }: { conversationId: string 
       </div>
 
       <MessageComposer
+        key={conversationId}
         conversationId={conversationId}
+        speakers={speakers}
+        activeActorId={viewer.activeActorId}
         onPending={addInflight}
         onSettled={settleInflight}
       />
@@ -347,18 +353,23 @@ function MessageBubble({ message }: { message: MessageView }) {
 }
 
 /**
- * A mensagem que aparece antes do banco responder. Sai com a identidade de DM
- * da pessoa, que é quem a está escrevendo, e some sozinha quando a conversa
- * recarrega com a versão que o banco aceitou.
+ * A mensagem que aparece antes do banco responder.
+ *
+ * Sai com o personagem que o compositor está usando agora — o mesmo que vai no
+ * formulário — e some sozinha quando a conversa recarrega com a versão que o
+ * banco aceitou. Sem remetente escolhido não há o que desenhar.
  */
-function optimisticMessage(viewer: Viewer, id: string, content: string): MessageView | null {
-  const author = dmIdentityOf(viewer);
-  if (!author) return null;
+function optimisticMessage(
+  author: ActorSummary,
+  id: string,
+  content: string,
+  mine: boolean,
+): MessageView {
   return {
     id,
     content,
     created_at: new Date().toISOString(),
     author,
-    mine: true,
+    mine,
   };
 }
