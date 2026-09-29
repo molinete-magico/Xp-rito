@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireViewer } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
@@ -82,12 +83,12 @@ export default async function AdminPage() {
               As ações abaixo alteram a mesa; mensagens privadas continuam seguindo as regras de identidade e participação.
             </p>
           </div>
-          <a
+          <Link
             href="/messages"
             className="border border-line px-3 py-2 text-sm text-ink-2 hover:bg-sunken"
           >
             Abrir mensagens
-          </a>
+          </Link>
         </div>
 
         <dl className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
