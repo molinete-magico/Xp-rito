@@ -234,6 +234,16 @@ export function ConversationStream({ conversationId }: { conversationId: string 
   useEffect(() => {
     if (!clearConfirmOpen) return;
     clearCancelRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setClearConfirmOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [clearConfirmOpen]);
 
   // A conversa decide quem pode falar nela: o personagem próprio e, para o
