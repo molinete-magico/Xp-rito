@@ -16,6 +16,7 @@ export function Menu({
   label,
   children,
   align = "start",
+  placement = "bottom",
   className,
 }: {
   trigger: (props: {
@@ -28,6 +29,8 @@ export function Menu({
   label: string;
   children: (close: () => void) => React.ReactNode;
   align?: "start" | "end";
+  /** "top" para o gatilho preso na base da tela, cujo menu cairia fora dela. */
+  placement?: "bottom" | "top";
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -86,8 +89,12 @@ export function Menu({
           role="menu"
           aria-label={label}
           className={cn(
-            "animate-rise absolute z-40 mt-1.5 min-w-56 border border-line bg-surface shadow-[0_8px_24px_-16px_rgba(0,0,0,0.45)]",
+            // Rola, com teto pela tela: um menu com o elenco inteiro do Mestre
+            // passava da altura da janela e o fim da lista — justamente os NPCs
+            // de baixo — ficava fora de alcance, sem rolagem para chegar lá.
+            "animate-rise absolute z-40 max-h-[min(24rem,60dvh)] min-w-56 overflow-y-auto overscroll-contain border border-line bg-surface shadow-[0_8px_24px_-16px_rgba(0,0,0,0.45)]",
             align === "end" ? "right-0" : "left-0",
+            placement === "top" ? "bottom-full mb-1.5" : "mt-1.5",
           )}
         >
           {children(() => setOpen(false))}

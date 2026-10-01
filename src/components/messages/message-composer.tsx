@@ -46,27 +46,46 @@ export function MessageComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inFlight = useRef<string | null>(null);
   const wasPending = useRef(false);
-  const [senderId, setSenderId] = useState<string>("");
+  // Trava do remetente. `null` = ninguém começou a escrever, então o remetente
+  // segue o personagem ativo. A trava carrega a rodada do envio em que foi
+  // feita, e o envio a invalida: assim ela vale entre o foco e o envio — sem
+  // depender de desfazer estado quando a Action responde.
+  const [pinned, setPinned] = useState<{ round: number; actorId: string } | null>(null);
+  const [round, setRound] = useState(0);
+  const pinnedActorId = pinned && pinned.round === round ? pinned.actorId : null;
+  const [chosenSenderId, setChosenSenderId] = useState<string>("");
 
   // Começa no personagem ativo, se ele estiver na conversa; senão no primeiro
   // disponível. `speakers` muda quando a conversa carrega, e aí a lista manda.
   const chosen = useMemo(
-    () => speakers.find((speaker) => speaker.id === senderId)
+    () => speakers.find((speaker) => speaker.id === pinnedActorId)
+      ?? speakers.find((speaker) => speaker.id === chosenSenderId)
       ?? speakers.find((speaker) => speaker.id === activeActorId)
       ?? speakers[0]
       ?? null,
-    [speakers, senderId, activeActorId],
+    [speakers, pinnedActorId, chosenSenderId, activeActorId],
   );
+
+  // Trava o remetente no momento em que a pessoa começa a escrever. Sem isso,
+  // trocar de personagem no menu enquanto se digita muda o `senderActorId` por
+  // baixo: a mensagem sai com a voz de quem a pessoa trocou para depois, e o
+  // `onPending` já tinha mostrado a outra na tela.
+  function pinSender() {
+    if (!chosen) return;
+    setPinned((current) =>
+      current && current.round === round ? current : { round, actorId: chosen.id },
+    );
+  }
 
   // A Action terminou: confirma ou desfaz a mensagem que já estava na tela.
   useEffect(() => {
     if (wasPending.current && !pending) {
       const id = inFlight.current;
       inFlight.current = null;
-      if (id) {
-        if (state.ok && textareaRef.current) textareaRef.current.value = "";
-        onSettled(state.ok, id);
-      }
+        if (id) {
+          if (state.ok && textareaRef.current) textareaRef.current.value = "";
+          onSettled(state.ok, id);
+        }
     }
     wasPending.current = pending;
   }, [pending, state, onSettled]);
@@ -84,6 +103,9 @@ export function MessageComposer({
           event.preventDefault();
           return;
         }
+        // O envio fecha a trava: a mensagem sai com a voz de quem estava na tela
+        // quando a pessoa apertou, e a próxima volta a acompanhar a ativa.
+        setRound((value) => value + 1);
         // O id devolvido é o que amarra a mensagem otimista à resposta do banco.
         // Sem guardar aqui, `inFlight` fica vazio, o efeito de conclusão não tem o
         // que confirmar, e a mensagem otimista nunca sai da tela: quando a versão
@@ -117,7 +139,12 @@ export function MessageComposer({
               id={`sender-${conversationId}`}
               name="senderEscolhido"
               value={chosen?.id ?? ""}
-              onChange={(event) => setSenderId(event.currentTarget.value)}
+              // Escolher no seletor é a troca explícita de voz: ela vale já, sem
+              // passar pela trava, porque foi a própria pessoa que pediu.
+              onChange={(event) => {
+                setChosenSenderId("");
+                setPinned({ round, actorId: event.currentTarget.value });
+              }}
               className="max-w-[9.5rem]"
             >
               {speakers.map((speaker) => (
@@ -136,7 +163,10 @@ export function MessageComposer({
           rows={1}
           maxLength={MAX}
           placeholder="Escreva uma mensagem"
+          onFocus={pinSender}
+          onChange={pinSender}
           onInput={(event) => {
+            pinSender();
             const field = event.currentTarget;
             field.style.height = "auto";
             field.style.height = `${Math.min(field.scrollHeight, 200)}px`;

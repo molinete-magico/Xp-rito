@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Compass, Home, Mail, Search, Settings, Shield, User } from "lucide-react";
 import { NavItem, UnreadBadge } from "@/components/shell/nav-item";
+import { IdentityRosterButton } from "@/components/shell/identity-roster";
 import { useUnread } from "@/components/shell/unread-provider";
 import { useDmUnread } from "@/components/shell/dm-unread-provider";
 import { site } from "@/lib/site";
@@ -46,6 +47,7 @@ export function SideNav({
 
       {isGm ? (
         <div className="mt-auto border-t border-line pt-3">
+          <IdentityRosterButton />
           <NavItem href="/admin" label="Painel do Mestre" icon={<Shield />} />
         </div>
       ) : null}

@@ -55,7 +55,7 @@ afterEach(() => {
 function setup(overrides: Partial<React.ComponentProps<typeof MessageComposer>> = {}) {
   const onPending = vi.fn<(sender: ActorSummary, content: string) => string>(() => "optimistic-1");
   const onSettled = vi.fn();
-  const { container } = render(
+  const { container, rerender } = render(
     <MessageComposer
       conversationId={conversationId}
       speakers={[autumn, mad]}
@@ -65,12 +65,14 @@ function setup(overrides: Partial<React.ComponentProps<typeof MessageComposer>> 
       {...overrides}
     />,
   );
+  const root = { rerender };
   return {
     container,
     textarea: container.querySelector("textarea")!,
     form: container.querySelector("form")!,
     onPending,
     onSettled,
+    rerender: (next: React.ReactElement) => root.rerender(next),
   };
 }
 
@@ -144,5 +146,55 @@ describe("compositor de mensagens", () => {
     send("   ")(target);
 
     expect(target.onPending).not.toHaveBeenCalled();
+  });
+});
+
+describe("trocar de personagem no meio da digitação", () => {
+  it("envia com a voz que estava na tela, não com a que chegou depois", async () => {
+    sendMessageAction.mockResolvedValue({ ok: true });
+    const target = setup();
+
+    // A pessoa começa a digitar como Autumn...
+    fireEvent.change(target.textarea, { target: { value: "olá" } });
+    // ...e enquanto escreve, troca de personagem no menu do shell.
+    target.rerender(
+      <MessageComposer
+        conversationId={conversationId}
+        speakers={[autumn, mad]}
+        activeActorId={mad.id}
+        onPending={target.onPending}
+        onSettled={target.onSettled}
+      />,
+    );
+    fireEvent.submit(target.form);
+
+    // Sem a trava, o `senderActorId` mudaria por baixo da digitação: a tela
+    // mostrava Autumn e a mensagem saía como Mad.
+    expect(target.onPending.mock.calls[0]?.[0].id).toBe(autumn.id);
+  });
+
+  it("a mensagem seguinte volta a acompanhar a identidade ativa", async () => {
+    sendMessageAction.mockResolvedValue({ ok: true });
+    const target = setup();
+
+    fireEvent.change(target.textarea, { target: { value: "primeira" } });
+    fireEvent.submit(target.form);
+    await waitFor(() => expect(target.onSettled).toHaveBeenCalled());
+
+    // A troca no shell aconteceu; a próxima mensagem é da nova voz.
+    target.rerender(
+      <MessageComposer
+        conversationId={conversationId}
+        speakers={[autumn, mad]}
+        activeActorId={mad.id}
+        onPending={target.onPending}
+        onSettled={target.onSettled}
+      />,
+    );
+    send("segunda")(target);
+
+    // A trava vale entre o foco e o envio, não para sempre: senão a segunda
+    // mensagem sairia com a voz da primeira.
+    expect(target.onPending.mock.calls[1]?.[0].id).toBe(mad.id);
   });
 });
