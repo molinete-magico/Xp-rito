@@ -140,6 +140,18 @@ export async function hideConversationAction(conversationId: string): Promise<{ 
   return {};
 }
 
+/** Volta para a minha caixa. O caminho de volta de `hideConversationAction`. */
+export async function unhideConversationAction(conversationId: string): Promise<{ error?: string }> {
+  await requireViewer();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("dm_unhide", { target: conversationId });
+  if (error) return { error: "Não foi possível reexibir a conversa." };
+  // A conversa entra na caixa e as não lidas voltam a contar no selo da
+  // navegação, que só o banco sabe recalcular.
+  revalidatePath("/messages");
+  return {};
+}
+
 /** Apaga a conversa para todos os participantes. */
 export async function clearConversationAction(conversationId: string): Promise<{ error?: string }> {
   await requireViewer();

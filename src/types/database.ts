@@ -494,6 +494,19 @@ export type Database = {
         Returns: void;
       };
       dm_hide: { Args: { target: string }; Returns: void };
+      dm_unhide: { Args: { target: string }; Returns: void };
+      dm_hidden: {
+        Args: { p_limit?: number };
+        Returns: {
+          id: string;
+          kind: string;
+          title: string | null;
+          last_message_at: string;
+          preview: string | null;
+          unread: number;
+          participants: Json;
+        }[];
+      };
       dm_clear: { Args: { target: string }; Returns: void };
     };
     Enums: {

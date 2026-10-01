@@ -70,6 +70,26 @@ export async function loadInbox(
 }
 
 /**
+ * As conversas que o usuário tirou da própria caixa.
+ *
+ * Mesma função de mapeamento da caixa de propósito: `dm_hidden` devolve as
+ * mesmas colunas, e um conversor separado aqui acabaria com a linha de ocultada
+ * mostrando um título diferente do que a conversa mostra ao ser reexibida.
+ */
+export async function loadHiddenConversations(
+  client: SupabaseClient<Database>,
+  viewer: Viewer,
+  limit = 50,
+): Promise<ConversationCard[]> {
+  const { data, error } = await client.rpc("dm_hidden", { p_limit: limit });
+  if (error) {
+    throw new Error(`Não foi possível carregar as conversas ocultas: ${error.message}`);
+  }
+
+  return ((data ?? []) as InboxRow[]).map((row) => toCard(row, viewer));
+}
+
+/**
  * Uma conversa aberta: participantes, cabeçalho e as mensagens mais recentes.
  *
  * `before` carrega a página anterior do histórico, no mesmo formato de cursor do

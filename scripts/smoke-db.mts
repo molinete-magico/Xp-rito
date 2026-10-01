@@ -266,6 +266,66 @@ try {
   ]);
   check("Mestre apaga qualquer publicação", deleted.id === postId);
 
+  // --- conversas ocultas têm caminho de volta --------------------------------
+  // Esconder tirava a conversa de `dm_inbox` sem existir função que a
+  // trouxesse de volta. Aqui o que interessa é o estado da linha depois de cada
+  // chamada, pela mesma nota de RLS do topo: um update que não casa passa em
+  // silêncio.
+  await db.asUser(FIXTURES.joao);
+  const [dm] = await run<{ id: string }>(
+    db,
+    "select public.dm_start_direct($1, $2) as id",
+    [f.arthurActor, f.helenaActor],
+  );
+
+  await run(db, "select public.dm_hide($1)", [dm.id]);
+  const [joaoHidden] = await run<{ hidden: boolean }>(
+    db,
+    "select hidden from public.dm_participants where conversation_id = $1 and actor_id = $2",
+    [dm.id, f.arthurActor],
+  );
+  check("esconder marca a linha do próprio usuário", joaoHidden.hidden === true, String(joaoHidden.hidden));
+
+  const [otherKept] = await run<{ hidden: boolean }>(
+    db,
+    "select hidden from public.dm_participants where conversation_id = $1 and actor_id = $2",
+    [dm.id, f.helenaActor],
+  );
+  check("esconder não toca na linha do outro", otherKept.hidden === false, String(otherKept.hidden));
+
+  const inboxIds = (await run<{ id: string }>(db, "select id from public.dm_inbox(50)")).map((r) => r.id);
+  check("conversa oculta sai da caixa", !inboxIds.includes(dm.id), `${inboxIds.length} na caixa`);
+
+  const hiddenIds = (await run<{ id: string }>(db, "select id from public.dm_hidden(50)")).map((r) => r.id);
+  check("conversa oculta aparece na lista de ocultas", hiddenIds.includes(dm.id), `${hiddenIds.length} oculta(s)`);
+
+  await run(db, "select public.dm_unhide($1)", [dm.id]);
+  const [joaoBack] = await run<{ hidden: boolean }>(
+    db,
+    "select hidden from public.dm_participants where conversation_id = $1 and actor_id = $2",
+    [dm.id, f.arthurActor],
+  );
+  check("reexibir desmarca a linha do próprio usuário", joaoBack.hidden === false, String(joaoBack.hidden));
+
+  const inboxAfter = (await run<{ id: string }>(db, "select id from public.dm_inbox(50)")).map((r) => r.id);
+  check("reexibir devolve a conversa para a caixa", inboxAfter.includes(dm.id), `${inboxAfter.length} na caixa`);
+
+  const hiddenAfter = (await run<{ id: string }>(db, "select id from public.dm_hidden(50)")).map((r) => r.id);
+  check("lista de ocultas fica vazia depois de reexibir", !hiddenAfter.includes(dm.id), `${hiddenAfter.length} oculta(s)`);
+
+  await db.asUser(FIXTURES.maria);
+  const mariaSees = (await run<{ id: string }>(db, "select id from public.dm_hidden(50)")).map((r) => r.id);
+  check("quem não participa não vê a oculta alheia", !mariaSees.includes(dm.id), `${mariaSees.length} oculta(s)`);
+
+  const denied = await capture(() =>
+    db.query("select public.dm_conversation_participants($1)", [dm.id]),
+  );
+  check(
+    "detalhe interno da linha não é alcançável pela sessão",
+    denied !== null,
+    firstLine(denied) ?? "",
+  );
+
   await db.flush();
   await db.close();
 

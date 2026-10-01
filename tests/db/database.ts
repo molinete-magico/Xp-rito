@@ -70,7 +70,10 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const asUser = async (userId: string | null, role: "authenticated" | "anon" = "authenticated") => {
     await db.exec("reset role");
     if (userId === null) {
-      await db.exec("select set_config('request.jwt.claims', '', false)");
+      // `{}` e não string vazia: o `auth.uid()` do bootstrap faz
+      // `current_setting('request.jwt.claims')::jsonb`, e `''::jsonb` é erro de
+      // sintaxe. É também o que o Supabase manda quando não há JWT.
+      await db.exec("select set_config('request.jwt.claims', '{}', false)");
       await db.exec(`set role ${role}`);
       return;
     }

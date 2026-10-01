@@ -93,7 +93,7 @@ export function ConversationRow({
 }
 
 /** Grupo: até três fotos sobrepostas, uma por participante. */
-function StackedAvatars({ actors }: { actors: ConversationCard["participants"] }) {
+export function StackedAvatars({ actors }: { actors: ConversationCard["participants"] }) {
   const shown = actors.slice(0, 3);
 
   if (shown.length === 0) {

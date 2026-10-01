@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/components/shell/session-provider";
-import { useDmSignal } from "@/components/shell/dm-unread-provider";
+import { useDmRefreshUnread, useDmSignal } from "@/components/shell/dm-unread-provider";
 import { ConversationRow } from "@/components/messages/conversation-row";
+import { HiddenConversations } from "@/components/messages/hidden-conversations";
 import { NewGroupButton } from "@/components/messages/new-group-button";
 import { NewMessageButton } from "@/components/messages/new-message-button";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui/empty-state";
-import { loadInbox } from "@/lib/data/messages";
+import { loadHiddenConversations, loadInbox } from "@/lib/data/messages";
 import type { ConversationCard } from "@/lib/types";
 
 /**
@@ -17,11 +18,17 @@ import type { ConversationCard } from "@/lib/types";
  * canal próprio aqui: quem avisa que algo mudou é o provider das mensagens, que
  * já escuta o Realtime pelo selo da navegação, e a caixa se recarrega quando o
  * sinal muda. Duas assinaturas do mesmo evento seria desperdício.
+ *
+ * As ocultas vêm na mesma volta, e não em uma tela separada: quem esconde a
+ * última conversa da caixa cai no estado vazio, que é exatamente dali onde
+ * precisa existir o caminho de volta.
  */
 export function InboxStream() {
   const { viewer, client, isLoading } = useSession();
   const signal = useDmSignal();
+  const refreshUnread = useDmRefreshUnread();
   const [conversations, setConversations] = useState<ConversationCard[] | null>(null);
+  const [hidden, setHidden] = useState<ConversationCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [masterFilter, setMasterFilter] = useState<"all" | "characters" | "npcs">("all");
@@ -51,8 +58,16 @@ export function InboxStream() {
     });
   }, [conversations, masterFilter, search, viewer]);
 
+  /**
+   * Recarrega as duas listas depois de uma ação.
+   *
+   * A lista de ocultas é a que não pode derrubar a caixa: quem tem conversa na
+   * tela continua vendo as conversas, e a seção some por ora. A da caixa, essa
+   * sim, vira erro visível.
+   */
   const reload = useCallback(async () => {
     if (!client || !viewer) return;
+    const hiddenList = await loadHiddenConversations(client, viewer).catch(() => null);
     try {
       const list = await loadInbox(client, viewer, viewer.isGm ? 200 : 50);
       setError(null);
@@ -60,12 +75,16 @@ export function InboxStream() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível carregar as conversas.");
     }
+    if (hiddenList) setHidden(hiddenList);
   }, [client, viewer]);
 
   useEffect(() => {
     if (!client || !viewer) return;
     let cancelled = false;
 
+    // A carga inicial é escrita direto no efeito, e não pelo `reload` de cima: o
+    // reload de dentro de um efeito chama setState de forma síncrona, que a regra
+    // de hooks proíbe. O `cancelled` protege a desmontagem no meio do caminho.
     void loadInbox(client, viewer, viewer.isGm ? 200 : 50)
       .then((list) => {
         if (cancelled) return;
@@ -74,6 +93,18 @@ export function InboxStream() {
       })
       .catch((cause: Error) => {
         if (!cancelled) setError(cause.message);
+      });
+
+    // As duas listas são independentes de propósito: a de ocultas não pode
+    // derrubar a caixa, porque perder a lista inteira por causa de uma seção
+    // secundária é pior do que a seção não aparecer agora.
+    void loadHiddenConversations(client, viewer)
+      .then((list) => {
+        if (!cancelled) setHidden(list);
+      })
+      .catch(() => {
+        // A seção de ocultas some e a caixa segue inteira. A recarga depois de
+        // reexibir traz a lista de volta.
       });
 
     return () => {
@@ -100,6 +131,13 @@ export function InboxStream() {
     };
   }, [signal, client, viewer]);
 
+  // Reexibir tira a conversa da lista de ocultas e a põe na caixa, e as não
+  // lidas dela voltam a contar no selo: quem recalcula é o banco.
+  const restore = useCallback(async () => {
+    await reload();
+    refreshUnread();
+  }, [reload, refreshUnread]);
+
   if (isLoading || !viewer) {
     return (
       <div className="px-4 py-10 text-center">
@@ -113,7 +151,7 @@ export function InboxStream() {
       <ErrorState
         title="Não foi possível carregar suas conversas"
         action={
-          <button type="button" onClick={reload} className="text-sm text-ink-2 underline">
+          <button type="button" onClick={restore} className="text-sm text-ink-2 underline">
             Tentar de novo
           </button>
         }
@@ -121,20 +159,27 @@ export function InboxStream() {
     );
   }
 
-
+  // A seção de ocultas aparece no estado vazio também: esconder a última conversa
+  // é justamente o caso em que a pessoa precisa do caminho de volta.
+  const hiddenSection = hidden && hidden.length > 0 ? (
+    <HiddenConversations conversations={hidden} viewer={viewer} onRestored={restore} />
+  ) : null;
 
   if (conversations && conversations.length === 0) {
-    // O botão de grupo fica no estado vazio: é a única forma de começar.
+    // Os botões ficam no estado vazio: é a única forma de começar.
     return (
-      <EmptyState
-        title="Nenhuma conversa ainda"
-        action={
-          <div className="flex flex-wrap justify-center gap-2">
-            <NewMessageButton />
-            <NewGroupButton />
-          </div>
-        }
-      />
+      <div>
+        <EmptyState
+          title="Nenhuma conversa ainda"
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <NewMessageButton />
+              <NewGroupButton />
+            </div>
+          }
+        />
+        {hiddenSection}
+      </div>
     );
   }
 
@@ -212,6 +257,8 @@ export function InboxStream() {
           ))}
         </ul>
       )}
+
+      {hiddenSection}
     </div>
   );
 }

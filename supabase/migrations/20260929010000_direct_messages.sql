@@ -205,6 +205,55 @@ as $$
   group by c.id;
 $$;
 
+-- Quem participa de uma conversa, no formato que a tela consome.
+--
+-- Uma função porque a caixa e a lista de ocultas precisam exatamente do mesmo
+-- objeto: duas cópias desse jsonb divergem no primeiro ajuste de avatar, e quem
+-- pagaria por isso é a linha da conversa, não a consulta.
+--
+-- A trava `is_dm_participant` não é decorativa. A função é do dono do banco (as
+-- duas listas acima são `security definer`), então sem ela qualquer conta
+-- chamaria esta por conta própria e leria de quem participa de conversa alheia.
+create or replace function public.dm_conversation_participants(target uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', a.id,
+        'display_name', a.display_name,
+        'username', a.username,
+        'avatar_url', a.avatar_url,
+        'banner_url', a.banner_url,
+        'avatar_position_x', a.avatar_position_x,
+        'avatar_position_y', a.avatar_position_y,
+        'banner_position_y', a.banner_position_y,
+        'entity_type', a.entity_type,
+        'character', (
+          select jsonb_build_object('id', ch.id, 'is_npc', ch.is_npc)
+          from public.characters ch
+          where ch.id = a.character_id
+        ),
+        'organization', (
+          select jsonb_build_object('id', o.id, 'type', o.type)
+          from public.organizations o
+          where o.id = a.organization_id
+        )
+      )
+      order by a.display_name
+    ),
+    '[]'::jsonb
+  )
+  from public.dm_participants p
+  join public.actors a on a.id = p.actor_id
+  where p.conversation_id = target
+    and public.is_dm_participant(target);
+$$;
+
 -- A caixa inteira numa consulta. Trazer a última mensagem de cada conversa pelo
 -- PostgREST daria uma consulta por linha, e a conversa que ficou parada some do
 -- limite: quem manda é o banco, que sabe escolher a última por conversa.
@@ -253,43 +302,78 @@ as $$
         and m.created_at > mine.last_read_at
         and not public.owns_dm_actor(m.actor_id)
     ) as unread,
-    (
-      select coalesce(
-        jsonb_agg(
-          jsonb_build_object(
-            'id', a.id,
-            'display_name', a.display_name,
-            'username', a.username,
-            'avatar_url', a.avatar_url,
-            'banner_url', a.banner_url,
-            'avatar_position_x', a.avatar_position_x,
-            'avatar_position_y', a.avatar_position_y,
-            'banner_position_y', a.banner_position_y,
-            'entity_type', a.entity_type,
-            'character', (
-              select jsonb_build_object('id', ch.id, 'is_npc', ch.is_npc)
-              from public.characters ch
-              where ch.id = a.character_id
-            ),
-            'organization', (
-              select jsonb_build_object('id', o.id, 'type', o.type)
-              from public.organizations o
-              where o.id = a.organization_id
-            )
-          )
-          order by a.display_name
-        ),
-        '[]'::jsonb
-      )
-      from public.dm_participants p2
-      join public.actors a on a.id = p2.actor_id
-      where p2.conversation_id = c.id
-    ) as participants
+    public.dm_conversation_participants(c.id) as participants
   from public.dm_conversations c
   join mine on mine.conversation_id = c.id
   order by c.last_message_at desc
   -- O default cobre a chamada sem argumento; o teto impede alguém de pedir a
   -- caixa inteira. Quem pede 0 recebe 0, que é o que o número diz.
+  limit least(greatest(coalesce(p_limit, 50), 0), 200);
+$$;
+
+-- As conversas que eu tirei da minha caixa. Sem isto, "some da minha caixa" era
+-- um beco sem volta: a conversa sumia da lista e não existia lugar nenhum para
+-- desfazer.
+--
+-- O complemento de `dm_inbox` é exacto e essa é a parte que importa: a caixa
+-- entra com `not p.hidden` sobre as identidades do usuário, então uma conversa
+-- pode estar visível por uma identidade e oculta por outra — o Mestre tem
+-- vários personagens na mesma conversa, e `dm_start_direct` só reexibe a linha
+-- de quem pediu. Aqui entra quem tem ao menos uma linha oculta e nenhuma
+-- visível. Sem o `not exists`, a mesma conversa apareceria nas duas listas.
+create or replace function public.dm_hidden(p_limit integer default 50)
+returns table (
+  id uuid,
+  kind text,
+  title text,
+  last_message_at timestamptz,
+  preview text,
+  unread bigint,
+  participants jsonb
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with mine as (
+    select distinct on (p.conversation_id)
+      p.conversation_id, p.last_read_at
+    from public.dm_participants p
+    where p.actor_id in (select public.my_dm_actor_ids())
+      and p.hidden
+    order by p.conversation_id, p.last_read_at desc
+  )
+  select
+    c.id,
+    c.kind,
+    c.title,
+    c.last_message_at,
+    (
+      select m.content
+      from public.dm_messages m
+      where m.conversation_id = c.id
+      order by m.created_at desc
+      limit 1
+    ) as preview,
+    (
+      select count(*)
+      from public.dm_messages m
+      where m.conversation_id = c.id
+        and m.created_at > mine.last_read_at
+        and not public.owns_dm_actor(m.actor_id)
+    ) as unread,
+    public.dm_conversation_participants(c.id) as participants
+  from public.dm_conversations c
+  join mine on mine.conversation_id = c.id
+  where not exists (
+    select 1
+    from public.dm_participants p
+    where p.conversation_id = c.id
+      and p.actor_id in (select public.my_dm_actor_ids())
+      and not p.hidden
+  )
+  order by c.last_message_at desc
   limit least(greatest(coalesce(p_limit, 50), 0), 200);
 $$;
 
@@ -489,6 +573,24 @@ begin
 end;
 $$;
 
+-- O caminho de volta. Mesmo predicado do `dm_hide`, então só a linha do usuário
+-- muda: a do outro participante nunca foi escondida por quem esconde, e o
+-- histórico dos dois continua o mesmo. Silêncio quando não há nada a reexibir é
+-- a mesma resposta de `dm_hide`, que também não reclama de alvo desconhecido.
+create or replace function public.dm_unhide(target uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.dm_participants
+  set hidden = false
+  where conversation_id = target
+    and actor_id in (select public.my_dm_actor_ids());
+end;
+$$;
+
 -- Marcar como lida até agora.
 create or replace function public.dm_mark_read(target uuid)
 returns void
@@ -551,8 +653,26 @@ grant execute on function public.dm_start_direct to authenticated;
 grant execute on function public.dm_create_group to authenticated;
 grant execute on function public.dm_clear to authenticated;
 grant execute on function public.dm_hide to authenticated;
+grant execute on function public.dm_unhide to authenticated;
 grant execute on function public.dm_mark_read to authenticated;
 grant execute on function public.dm_inbox(integer) to authenticated;
+grant execute on function public.dm_hidden(integer) to authenticated;
+
+-- `dm_conversation_participants` é detalhe de como `dm_inbox` e `dm_hidden`
+-- montam a linha: nenhuma tela chama.
+--
+-- Revogar de `PUBLIC` não basta no Supabase: existe `alter default privileges`
+-- que dá execute a `anon` e `authenticated` no momento da criação, e o revoke
+-- feito depois não alcança essa concessão. Por isso os três papéis são
+-- revogados explicitamente.
+--
+-- As duas listas continuam funcionando: elas são `security definer` e chamam a
+-- função como o dono, que tem execute por ser o dono. A trava `is_dm_participant`
+-- dentro da função é a segunda camada — mesmo alcançável, quem não participa
+-- leria `[]`.
+revoke execute on function public.dm_conversation_participants(uuid) from PUBLIC;
+revoke execute on function public.dm_conversation_participants(uuid) from anon;
+revoke execute on function public.dm_conversation_participants(uuid) from authenticated;
 
 revoke all on public.dm_conversations from anon;
 revoke all on public.dm_participants from anon;
