@@ -23,7 +23,12 @@ describe("mensagens diretas: cursor de leitura e criação idempotente", () => {
 
     const firstId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
     const secondId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
-    const observedAt = "2026-10-01T14:00:00Z";
+    // O instante observado é relativo ao relógio, e não fixo: o `last_read_at`
+    // nasce em `now()`, na criação da conversa, e o cursor de leitura só anda
+    // para frente. Com um horário no passado, `dm_mark_read` recusaria a
+    // marcação como retrocesso e nada contaria como não lida — o teste passaria
+    // a falhar sozinho conforme o dia.
+    const observedAt = new Date(Date.now() + 60_000).toISOString();
 
     await db.asUser(FIXTURES.gm);
     await run(
@@ -58,7 +63,8 @@ describe("mensagens diretas: cursor de leitura e criação idempotente", () => {
 
     const firstId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
     const secondId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
-    const observedAt = "2026-10-01T14:05:00Z";
+    // Mesma razão do caso acima: o cursor de leitura nasce em `now()`.
+    const observedAt = new Date(Date.now() + 60_000).toISOString();
 
     await db.asUser(FIXTURES.gm);
     await run(
