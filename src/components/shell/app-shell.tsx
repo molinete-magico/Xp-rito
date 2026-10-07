@@ -9,6 +9,7 @@ import { UnreadProvider } from "@/components/shell/unread-provider";
 import { DmUnreadProvider } from "@/components/shell/dm-unread-provider";
 import { useSession } from "@/components/shell/session-provider";
 import { site } from "@/lib/site";
+import { SiteLogo } from "@/components/brand/site-logo";
 
 /**
  * Moldura da rede.
