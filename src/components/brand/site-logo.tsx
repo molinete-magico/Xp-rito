@@ -2,14 +2,20 @@ import Image from "next/image";
 
 export function SiteLogo({ size = 48, className = "" }: { size?: number; className?: string }) {
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center ${className}`} style={{ width: size, height: size }}>
+    <span
+      role="img"
+      aria-label="Xpírito"
+      className={`inline-flex shrink-0 items-center justify-center ${className}`}
+      style={{ width: size, height: size }}
+    >
       <Image
         src="/LogoXpitrito.png"
-        alt="Xpírito"
+        alt=""
+        aria-hidden="true"
         width={size}
         height={size}
         priority
-        className="hidden h-full w-full object-contain dark:block"
+        className="h-full w-full object-contain dark:hidden"
       />
       <Image
         src="/LogoXpitrito2.png"
@@ -18,7 +24,7 @@ export function SiteLogo({ size = 48, className = "" }: { size?: number; classNa
         width={size}
         height={size}
         priority
-        className="h-full w-full object-contain dark:hidden"
+        className="hidden h-full w-full object-contain dark:block"
       />
     </span>
   );
