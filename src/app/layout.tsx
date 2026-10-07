@@ -36,6 +36,11 @@ export const metadata: Metadata = {
   },
   description: site.description,
   applicationName: site.name,
+  icons: {
+    icon: "/xpirito-logo.svg",
+    shortcut: "/xpirito-logo.svg",
+    apple: "/xpirito-logo.svg",
+  },
   formatDetection: { telephone: false },
 };
 

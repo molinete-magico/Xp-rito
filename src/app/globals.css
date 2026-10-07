@@ -210,6 +210,15 @@
     }
   }
 
+  @keyframes logo-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .animate-logo-spin {
+    animation: logo-spin 1.8s linear infinite;
+  }
+
   /* Superfície padrão: papel, fio por cima, canto vivo. */
   .sheet {
     background-color: var(--surface);

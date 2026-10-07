@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { LogoLoader } from "@/components/brand/logo-loader";
 
 /**
  * Esqueleto do feed.
@@ -9,7 +10,7 @@ import { cn } from "@/lib/cn";
  */
 export function PostFeedSkeleton({ rows = 4, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn("divide-y divide-line", className)} aria-hidden="true">
+    <div className={cn("divide-y divide-line", className)} aria-hidden="true">\n      <LogoLoader />
       {Array.from({ length: rows }, (_, index) => (
         <div key={index} className="animate-pulse px-4 py-4">
           <div className="flex gap-3">
