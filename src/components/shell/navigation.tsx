@@ -9,6 +9,7 @@ import { useUnread } from "@/components/shell/unread-provider";
 import { useDmUnread } from "@/components/shell/dm-unread-provider";
 import { site } from "@/lib/site";
 import { cn } from "@/lib/cn";
+import { SiteLogo } from "@/components/brand/site-logo";
 import { preferredActiveActorId } from "@/lib/data/identities";
 import type { ActorSummary } from "@/lib/types";
 
@@ -32,7 +33,7 @@ export function SideNav({
   return (
     <>
       <Link href="/home" className="mb-6 block px-3" aria-label={`${site.name}, ir para o início`}>
-        <span className="font-display text-xl leading-none text-ink">{site.name}</span>
+        <SiteLogo size={52} className="h-[52px] w-[52px]" />
       </Link>
 
       <nav aria-label="Navegação principal" className="flex flex-col gap-0.5">
