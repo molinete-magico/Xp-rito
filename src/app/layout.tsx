@@ -61,6 +61,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/LogoXpitrito.png" media="(prefers-color-scheme: light)" />
+        <link rel="icon" href="/LogoXpitrito2.png" media="(prefers-color-scheme: dark)" />
+        <link rel="apple-touch-icon" href="/LogoXpitrito2.png" />
         <script
           // Aplica o tema antes da primeira pintura para não piscar branco.
           dangerouslySetInnerHTML={{
