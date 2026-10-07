@@ -2,13 +2,24 @@ import Image from "next/image";
 
 export function SiteLogo({ size = 48, className = "" }: { size?: number; className?: string }) {
   return (
-    <Image
-      src="/xpirito-logo.svg"
-      alt="Xpírito"
-      width={size}
-      height={size}
-      priority
-      className={`invert dark:invert-0 ${className}`}
-    />
+    <span className={`inline-flex shrink-0 items-center justify-center ${className}`} style={{ width: size, height: size }}>
+      <Image
+        src="/LogoXpitrito.png"
+        alt="Xpírito"
+        width={size}
+        height={size}
+        priority
+        className="hidden h-full w-full object-contain dark:block"
+      />
+      <Image
+        src="/LogoXpitrito2.png"
+        alt=""
+        aria-hidden="true"
+        width={size}
+        height={size}
+        priority
+        className="h-full w-full object-contain dark:hidden"
+      />
+    </span>
   );
 }
